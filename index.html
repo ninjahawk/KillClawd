@@ -198,16 +198,16 @@ body { width:100vw; height:100vh; overflow:hidden; background:transparent; }
 
 <script>
 'use strict'
-const { ipcRenderer } = require('electron')
-const fs   = require('fs')
-const path = require('path')
-const os   = require('os')
+const api = window.clawdAPI
+if (!api) throw new Error('clawdAPI unavailable (preload did not run)')
+const ipcSend = ch => api.ipcSend(ch)
+const pathJoin = (...parts) => api.pathJoin(...parts)
 
 const SW = window.screen.width, SH = window.screen.availHeight
 const CW = 110, CH = 110
-const DESKTOP  = path.join(os.homedir(), 'Desktop')
+const DESKTOP  = api.desktopPath()
 const startedAt = Date.now()
-const username  = os.userInfo().username
+const username  = api.username()
 
 // ── Elements ─────────────────────────────────────────────────
 const clawdEl  = document.getElementById('clawd')
@@ -432,7 +432,7 @@ function fileSize(b){
   if(!b) return '0B'; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(1)+'KB'
   if(b<1073741824) return (b/1048576).toFixed(1)+'MB'; return (b/1073741824).toFixed(1)+'GB'
 }
-function statOf(p){ try{return fs.statSync(p)}catch{return null} }
+function statOf(p){ return api.statSync(p) }
 
 function envCtx() {
   const cd=Math.hypot(mx-(x+CW/2),my-(y+CH/2))
@@ -493,12 +493,12 @@ async function maybeThinK() {
 }
 
 // ── XP / Level system ─────────────────────────────────────────
-const XP_FILE = path.join(os.homedir(), 'Desktop', 'clawd-xp.json')
+const XP_FILE = pathJoin(api.homedir(), 'Desktop', 'clawd-xp.json')
 let xp = 0, level = 1, totalXP = 0
 
 // Load saved XP
 try {
-  const saved = JSON.parse(fs.readFileSync(XP_FILE, 'utf8'))
+  const saved = JSON.parse(api.readFileSync(XP_FILE, 'utf8'))
   xp = saved.xp || 0; level = saved.level || 1; totalXP = saved.totalXP || 0
 } catch {}
 
@@ -529,7 +529,7 @@ function gainXP(amount, reason) {
 }
 
 function saveXP() {
-  try { fs.writeFileSync(XP_FILE, JSON.stringify({xp, level, totalXP})) } catch {}
+  try { api.writeFileSync(XP_FILE, JSON.stringify({xp, level, totalXP})) } catch {}
 }
 
 function updateXPBar() {
@@ -765,10 +765,10 @@ function checkUptime(){
 }
 
 // ── Log ───────────────────────────────────────────────────────
-const LOG=path.join(os.homedir(),'Desktop','clawd-journal.txt')
-try{if(!fs.existsSync(LOG))fs.writeFileSync(LOG,`CLAWD'S JOURNAL\n${'─'.repeat(22)}\n\n`)}catch{}
+const LOG=pathJoin(api.homedir(),'Desktop','clawd-journal.txt')
+try{if(!api.existsSync(LOG))api.writeFileSync(LOG,`CLAWD'S JOURNAL\n${'─'.repeat(22)}\n\n`)}catch{}
 function writeLog(l){
-  try{const ts=new Date().toLocaleTimeString('en-US',{hour12:false});fs.appendFileSync(LOG,`[${ts}] ${l}\n`)}catch{}
+  try{const ts=new Date().toLocaleTimeString('en-US',{hour12:false});api.appendFileSync(LOG,`[${ts}] ${l}\n`)}catch{}
 }
 
 // ── Chat ──────────────────────────────────────────────────────
@@ -780,11 +780,11 @@ function openChat(){
   if(cx+220>SW) cx=x-228; if(cy+85>SH) cy=SH-90
   chatEl.style.left=Math.max(4,cx)+'px'; chatEl.style.top=Math.max(4,cy)+'px'
   chatEl.classList.add('open'); chatIn.value=''; chatIn.focus()
-  ipcRenderer.send('mouse-over')
+  ipcSend('mouse-over')
 }
 function closeChat(){
   chatOpen=false; chatEl.classList.remove('open')
-  if(!folderOpen&&!castleOpen) ipcRenderer.send('mouse-out')
+  if(!folderOpen&&!castleOpen) ipcSend('mouse-out')
 }
 async function submitChat(){
   const msg=chatIn.value.trim(); if(!msg){closeChat();return}
@@ -965,7 +965,7 @@ function openCastlePanel(){
   cpEl.classList.add('open')
   cpSprite.src=SP.build; castleOpen=true
   spriteEl.style.opacity='0'
-  ipcRenderer.send('mouse-over')
+  ipcSend('mouse-over')
   scheduleCastleObs(1500)
   writeLog('[castle] entered')
   nextCastleIn=Infinity
@@ -1003,7 +1003,7 @@ function exitCastle(){
   state='celeb'; celebF=45; setSprite('celeb',true)
   showBubble('left the castle',2500)
   writeLog('[castle] exited')
-  if(!dragging) ipcRenderer.send('mouse-out')
+  if(!dragging) ipcSend('mouse-out')
 }
 
 // ── VEHICLES ─────────────────────────────────────────────────
@@ -1074,7 +1074,7 @@ let folderOpen=false, obsLoop=null, folderFiles=[], folderFull='', folderNm=''
 let fpEnterX=0, fpEnterY=0, fpOpenAt=0, obsBusy=false
 
 function getDeskFolders(){
-  try{return fs.readdirSync(DESKTOP).filter(f=>{const s=statOf(path.join(DESKTOP,f));return s&&s.isDirectory()})}catch{return[]}
+  try{return api.readdirSync(DESKTOP).filter(f=>{const s=statOf(pathJoin(DESKTOP,f));return s&&s.isDirectory()})}catch{return[]}
 }
 function folderApproxPos(idx){
   const ipc=Math.max(1,Math.floor((SH-40)/90))
@@ -1097,18 +1097,20 @@ async function startFolderExplore(){
 }
 
 async function doEnterFolder(name){
-  pendingFolder=null; folderNm=name; folderFull=path.join(DESKTOP,name)
+  pendingFolder=null; folderNm=name; folderFull=pathJoin(DESKTOP,name)
   fpEnterX=x; fpEnterY=y
   state='entering'; enterF=80; curSp=''
   setSprite('enter',true); showBubble('going in',2000)
   writeLog(`[folder] → "${name}"`)
-  try{folderFiles=fs.readdirSync(folderFull)}catch{folderFiles=[]}
+  try{folderFiles=api.readdirSync(folderFull)}catch{folderFiles=[]}
   fpName.textContent='📁 '+name; fpMsgs.innerHTML=''; fpFiles.innerHTML=''
   const shown=folderFiles.slice(0,10)
   for(const f of shown){
     const chip=document.createElement('div'); chip.className='fp-chip'
-    const isDir=(()=>{const s=statOf(path.join(folderFull,f));return s&&s.isDirectory()})()
-    chip.innerHTML=`<span>${isDir?'📁':xi(f)}</span><span>${f}</span>`
+    const isDir=(()=>{const s=statOf(pathJoin(folderFull,f));return s&&s.isDirectory()})()
+    const icon=document.createElement('span'); icon.textContent=isDir?'📁':xi(f)
+    const name=document.createElement('span'); name.textContent=f
+    chip.appendChild(icon); chip.appendChild(name)
     fpFiles.appendChild(chip)
   }
   const fst=statOf(folderFull)
@@ -1125,15 +1127,19 @@ function openFolderPanel(){
   fpSprite.src=Math.random()<.5?SP.reading:SP.debug
   folderOpen=true; fpOpenAt=Date.now(); obsBusy=false
   spriteEl.style.opacity='0'
-  ipcRenderer.send('mouse-over')
+  ipcSend('mouse-over')
   scheduleObs(1800)
 }
 
 function addObs(aboutFile,text){
   const dot=fpMsgs.querySelector('.obs-dots'); if(dot) dot.remove()
   const div=document.createElement('div'); div.className='obs'
-  if(aboutFile) div.innerHTML=`<div class="obs-about">${xi(aboutFile)} ${aboutFile}</div>${text}`
-  else div.textContent=text
+  if(aboutFile){
+    const about=document.createElement('div'); about.className='obs-about'
+    about.textContent=`${xi(aboutFile)} ${aboutFile}`
+    const body=document.createElement('div'); body.textContent=text
+    div.appendChild(about); div.appendChild(body)
+  }else div.textContent=text
   fpMsgs.appendChild(div); fpMsgs.scrollTop=fpMsgs.scrollHeight
   fpSprite.src=SP.think
   setTimeout(()=>{if(folderOpen)fpSprite.src=Math.random()<.5?SP.reading:SP.debug},2200)
@@ -1148,7 +1154,7 @@ async function generateObs(){
   let aboutFile=null, text=null
   if(folderFiles.length){
     aboutFile=folderFiles[Math.random()*folderFiles.length|0]
-    const fp2=path.join(folderFull,aboutFile), st=statOf(fp2)
+    const fp2=pathJoin(folderFull,aboutFile), st=statOf(fp2)
     const isDir=st&&st.isDirectory()
     const age=st?fileAge(st.mtimeMs):'?'
     const sz=st&&!isDir?fileSize(st.size):null
@@ -1182,7 +1188,7 @@ function exitFolder(){
   fpEl.classList.remove('open'); spriteEl.style.opacity='1'
   state='walk'; curSp=''; pickTarget()
   writeLog(`[folder] ← left "${folderNm}"`)
-  if(!dragging) ipcRenderer.send('mouse-out')
+  if(!dragging) ipcSend('mouse-out')
 }
 function checkAutoExit(){ if(folderOpen&&Date.now()-fpOpenAt>65000) exitFolder() }
 
@@ -1339,11 +1345,11 @@ document.addEventListener('mousemove',e=>{
   lmx=mx;lmy=my;mx=e.clientX;my=e.clientY
   cspeed=Math.hypot(mx-lmx,my-lmy);cstillF=0
 
-  if(chatOpen||folderOpen||castleOpen||ctxOpen){ ipcRenderer.send('mouse-over') }
+  if(chatOpen||folderOpen||castleOpen||ctxOpen){ ipcSend('mouse-over') }
   else {
     const rc=clawdEl.getBoundingClientRect()
     const over=e.clientX>=rc.left&&e.clientX<=rc.right&&e.clientY>=rc.top&&e.clientY<=rc.bottom
-    ipcRenderer.send(over?'mouse-over':'mouse-out')
+    ipcSend(over?'mouse-over':'mouse-out')
   }
   if(dragging){
     dragVx=(e.clientX-dox)-x; dragVy=(e.clientY-doy)-y
@@ -1390,9 +1396,9 @@ function showCtx(e){
   let cx=e.clientX, cy=e.clientY
   if(cx+165>SW) cx=SW-170; if(cy+140>SH) cy=SH-145
   ctxEl.style.left=cx+'px'; ctxEl.style.top=cy+'px'
-  ctxEl.classList.add('show'); ctxOpen=true; updateXPBar(); ipcRenderer.send('mouse-over')
+  ctxEl.classList.add('show'); ctxOpen=true; updateXPBar(); ipcSend('mouse-over')
 }
-function hideCtx(){ ctxEl.classList.remove('show'); ctxOpen=false; if(!chatOpen&&!folderOpen&&!castleOpen) ipcRenderer.send('mouse-out') }
+function hideCtx(){ ctxEl.classList.remove('show'); ctxOpen=false; if(!chatOpen&&!folderOpen&&!castleOpen) ipcSend('mouse-out') }
 clawdEl.addEventListener('contextmenu',showCtx)
 document.addEventListener('click',e=>{ if(!ctxEl.contains(e.target)) hideCtx() })
 document.addEventListener('contextmenu',e=>{ if(!clawdEl.contains(e.target)&&!ctxEl.contains(e.target)) hideCtx() })
@@ -1418,7 +1424,7 @@ document.getElementById('ctx-pet').addEventListener('click',()=>{
 document.getElementById('ctx-mob').addEventListener('click',()=>{ hideCtx(); nextMobIn=500 })
 document.getElementById('ctx-castle').addEventListener('click',()=>{ hideCtx(); nextCastleIn=500 })
 document.getElementById('ctx-vehicle').addEventListener('click',()=>{ hideCtx(); nextVehicleIn=500 })
-document.getElementById('ctx-quit').addEventListener('click',()=>ipcRenderer.send('quit'))
+document.getElementById('ctx-quit').addEventListener('click',()=>ipcSend('quit'))
 
 // ── Boot ──────────────────────────────────────────────────────
 updateXPBar()
@@ -1429,7 +1435,7 @@ initOllama().then(()=>{
 pickTarget(); tick()
 
 // ── Demo mode ─────────────────────────────────────────────────
-if(typeof process !== 'undefined' && process.argv && process.argv.includes('--demo')) {
+if(api.isDemoMode()) {
   const demoSteps = [
     [3000,  ()=>{ showBubble("i'm awake",3000) }],
     [7000,  ()=>{ state='crazy'; crazyF=80 }],
@@ -1438,7 +1444,7 @@ if(typeof process !== 'undefined' && process.argv && process.argv.includes('--de
     [60000, ()=>{ if(inVehicle) dismountVehicle() }],
     [65000, ()=>{ spawnCastle() }],
     [75000, ()=>{ thoughtCd=0; thoughtBusy=false }],
-    [88000, ()=>{ ipcRenderer.send('quit') }],
+    [88000, ()=>{ ipcSend('quit') }],
   ]
   demoSteps.forEach(([ms, fn]) => setTimeout(fn, ms))
 }
