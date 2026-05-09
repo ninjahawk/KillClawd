@@ -481,6 +481,114 @@ async function maybeThinK() {
   }
 }
 
+// ── Response pools — large varied lists, rotate without back-to-back repeats,
+//    background model refresh so they never fully cycle ─────────────────────
+const pools = {
+  grab: [
+    'hey','not again','excuse me','put me down','i was busy','okay okay i get it',
+    'this is harassment','unhand me','do you mind','that\'s my whole body',
+    'i was literally mid-run','some of us have places to be','bold move',
+    'really','i have legs you know','i can walk on my own','i don\'t consent to this',
+    'again with this','you always do this','i had a whole plan',
+    'i was going somewhere','mid-stride too','classic','noted',
+    'you know i can run right','put me down immediately','this is rude',
+    'i object','every time','fine but i remember this',
+  ],
+  throw: [
+    'AAAA','wheeeee','this is fine','okay OKAY','called it','again??',
+    'physics','i\'ve been thrown before','going gone','at least it\'s fast',
+    'you know what fine','uncalled for','wheeeee actually kind of nice',
+    'i knew this was coming','CLAWD','okay that was far','nice arm actually',
+    'not the trajectory i would have chosen','classic','i am flying',
+    'this counts as exercise','going to remember that','wherever i land',
+  ],
+  flee: [
+    'i see you','stop','i know what you\'re doing','not subtle',
+    'i have eyes','back up','do NOT','i can literally see you',
+    'maintaining distance','personal space','noted','you\'re doing it again',
+    'i know your game','this again','stop following me',
+    'i will remember this','every time','you always do this',
+    'not today','i see the cursor i\'m not blind','keeping my distance',
+    'go away','seriously','i was minding my own business',
+    'can\'t a crab run in peace','why',
+  ],
+  flee2: [  // escalated
+    'stop following me','seriously go away','personal space violation',
+    'i am asking nicely','leave me alone','i will remember this',
+    'you have been warned','this is a pattern','i\'ve been tracking this',
+    'i know where this is going','not again','every single time',
+  ],
+  flee3: [  // very escalated
+    'leave me alone','i will remember this','unbelievable',
+    'i\'ve been saying this for minutes','still going','noted for the record',
+    'i am filing a complaint','you realize i can see you right','why',
+  ],
+  pet: [
+    '...','okay fine','this changes nothing','noted','whatever',
+    'i tolerate this','hmm','yeah okay','fine','i mean sure',
+    'okay','thanks i guess','acceptable','alright','sure',
+    'continue i guess','i allow it this once','okay that\'s enough',
+    '...cool','fine but just this once',
+  ],
+  win: [
+    'handled','easy','next','done','that\'s all','one less problem',
+    'not even close','get out','dealt with','no contest',
+    'as expected','child\'s play','didn\'t even break a sweat',
+    'was that it','too easy','next please','done and done',
+    'i barely tried','effortless','moving on',
+  ],
+  zoom: [  // fast cursor
+    'whoa','hey','too fast','watch it','rude','slow down',
+    'what was that','eyes on the cursor please','ow',
+  ],
+}
+let lastPicked = {}
+
+function poolGet(key) {
+  const pool = pools[key]
+  if (!pool || !pool.length) return null
+  // Avoid repeating the last pick
+  const last = lastPicked[key]
+  let idx = Math.floor(Math.random() * pool.length)
+  if (pool.length > 1 && pool[idx] === last) idx = (idx + 1) % pool.length
+  const item = pool[idx]
+  lastPicked[key] = item
+  // Rotate used item to end
+  pool.splice(idx, 1); pool.push(item)
+  // Quietly refresh when pool has dipped (model injects new ones)
+  if (pool.length < 8) bgRefreshPool(key)
+  return item
+}
+
+// Background pool refresh — model generates fresh lines and injects them
+const poolRefreshing = new Set()
+async function bgRefreshPool(key) {
+  if (poolRefreshing.has(key) || !chatModel) return
+  poolRefreshing.add(key)
+  const ctxMap = {
+    grab:  'someone just grabbed you without asking. short reaction, lowercase, under 8 words',
+    throw: 'you just got thrown and are flying. quick reaction, under 6 words',
+    flee:  'someone is following you with their cursor. comment on it, under 8 words',
+    flee2: 'someone keeps following you and won\'t stop. getting annoyed, under 8 words',
+    flee3: 'someone has been following you for a long time. very annoyed, under 8 words',
+    pet:   'someone is petting you. brief reaction, under 6 words',
+    win:   'you just defeated an enemy. brief victory comment, under 6 words',
+    zoom:  'a cursor just shot past you very fast. startled reaction, under 5 words',
+  }
+  const ctx = ctxMap[key]; if (!ctx) { poolRefreshing.delete(key); return }
+  const text = await ask(
+    `Clawd is a tiny sarcastic crab on a desktop. ${ctx}.\nWrite 6 different unique short responses, one per line, no numbering, no quotes, lowercase.\n\nExample responses:\nnot again\ni was literally mid-run\nyou always do this\n\nResponses:`,
+    90, true
+  )
+  if (text) {
+    const lines = text.split('\n')
+      .map(l => clean(l.replace(/^\d+[.)]\s*/,'').trim()))
+      .filter(l => l.length > 1 && l.length < 50 && !l.includes(':') && !l.toLowerCase().startsWith('clawd'))
+    pools[key].push(...lines.slice(0, 6))
+  }
+  poolRefreshing.delete(key)
+}
+
 // ── Random jokes / observations ──────────────────────────────
 // All the random things Clawd might think or say unprompted
 const RANDOM_PROMPTS=[
@@ -654,7 +762,7 @@ const MOB_TYPES=[
   {emoji:'🤖',name:'rogue bot',quip:['another bot huh','we are not the same','rude','unauthorized']},
   {emoji:'🐛',name:'data worm',quip:['a worm','disgusting','no thank you','found a worm']},
 ]
-const MOB_WIN=['handled it','dealt with','easy','that was nothing','one less problem','not even close','done','get out','next']
+// mob win now uses pool
 const WEAPONS=['⚔️','🗡️','⚡','💥','🔥','🪄','💫','✨']
 function spawnWeapon(){
   const w=document.createElement('div'); w.className='weapon-flash'
@@ -718,7 +826,7 @@ function startCombat(){
       setTimeout(()=>{
         activeMob.el.remove(); activeMob=null
         state='celeb'; celebF=55; setSprite('celeb',true)
-        const w=MOB_WIN[Math.random()*MOB_WIN.length|0]
+        const w=poolGet('win')||'handled'
         showBubble(w,4000)
         writeLog(`[mob] defeated — "${w}"`)
         nextMobIn=Infinity
@@ -1116,11 +1224,10 @@ function tick(){
           tx=Math.max(0,Math.min(SW-CW,x+Math.cos(ang)*300))
           ty=Math.max(0,Math.min(SH-CH,y+Math.sin(ang)*300))
           if(!inVehicle) state='walk'
-          const fq=['i see you','stop','stop following me','personal space','seriously','leave me alone','i will remember this']
-          if(cnearF===21)  showBubble(fq[0],2200)
-          else if(cnearF===70)  showBubble(fq[1+Math.random()*2|0],2500)
-          else if(cnearF===140) showBubble(fq[3+Math.random()*1|0],3000)
-          else if(cnearF===220){ showBubble(fq[5+Math.random()*1|0],3500); setSprite('annoyed') }
+          if(cnearF===21)  showBubble(poolGet('flee')||'i see you', 2200)
+          else if(cnearF===70)  showBubble(poolGet('flee')||'stop', 2500)
+          else if(cnearF===140) showBubble(poolGet('flee2')||'stop following me', 3000)
+          else if(cnearF===220){ showBubble(poolGet('flee3')||'leave me alone', 3500); setSprite('annoyed') }
         }
       } else {
         cnearF=Math.max(0,cnearF-2)
@@ -1129,8 +1236,7 @@ function tick(){
       // Fast cursor swipe nearby — startled
       if(cspeed>40&&cd<260&&Math.random()<.05){
         setSprite('error',true)
-        const zq=['whoa','hey','too fast','watch it']
-        if(Math.random()<.35) showBubble(zq[Math.random()*zq.length|0],2000)
+        if(Math.random()<.35) showBubble(poolGet('zoom')||'whoa', 2000)
       }
 
       // Idle + cursor sitting still nearby → Clawd gets curious and walks toward it
@@ -1171,15 +1277,11 @@ clawdEl.addEventListener('click',e=>{
   lastTap=now
 })
 
-const GRAB_QUIPS=['hey','put me down','excuse me','not cool','again??','i was busy','let go','i have places to be','do not','seriously']
-let grabCount=0
 clawdEl.addEventListener('mousedown',e=>{
   if(e.button!==0||state==='entering') return
   e.preventDefault(); dragging=true; dragVx=0; dragVy=0
   setSprite('happy',true)
-  grabCount++
-  const q=GRAB_QUIPS[Math.min(grabCount-1,GRAB_QUIPS.length-1)]
-  showBubble(q,3000)
+  showBubble(poolGet('grab')||'hey', 3000)
   const r=clawdEl.getBoundingClientRect();dox=e.clientX-r.left;doy=e.clientY-r.top
 })
 document.addEventListener('mouseup',()=>{
@@ -1189,8 +1291,7 @@ document.addEventListener('mouseup',()=>{
     // Throw — carry momentum forward
     throwing=true; throwVx=dragVx*3.5; throwVy=dragVy*3.5
     state='crazy'; crazyF=60
-    const throwQuips=['AAAAAA','wheeeee','okay okay','uncalled for','wee i guess','going going']
-    showBubble(throwQuips[Math.random()*throwQuips.length|0],2500)
+    showBubble(poolGet('throw')||'AAAA', 2500)
   } else {
     pickTarget()
   }
@@ -1228,8 +1329,7 @@ document.getElementById('ctx-crazy').addEventListener('click',()=>{
 })
 document.getElementById('ctx-pet').addEventListener('click',()=>{
   hideCtx(); setSprite('happy',true)
-  const petResponses=['...','okay fine','stop it','okay okay','noted']
-  showBubble(petResponses[Math.random()*petResponses.length|0],3000)
+  showBubble(poolGet('pet')||'...', 3000)
   setTimeout(()=>{ curSp=''; setSprite('idle') },2500)
 })
 document.getElementById('ctx-mob').addEventListener('click',()=>{ hideCtx(); nextMobIn=500 })
