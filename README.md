@@ -19,7 +19,7 @@ Its core: **~2K lines of vanilla JS + Electron + Ollama**. No cloud. No subscrip
 
 > **Design philosophy**: Clawd should feel like he's doing his own thing and you're interrupting him — not the other way around.
 
-Clawd uses the [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk) sprite assets.
+
 
 ---
 
