@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.png" width="880"/>
+<img src="assets/BANNER IMAGE.jpeg" width="880"/>
 
 [![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)](https://electronjs.org)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama)](https://ollama.ai)
