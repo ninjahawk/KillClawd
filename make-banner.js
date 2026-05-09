@@ -4,7 +4,7 @@ const fs   = require('fs')
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({
-    width: 880, height: 310,
+    width: 1168, height: 409,
     show: false,
     webPreferences: { nodeIntegration: false }
   })

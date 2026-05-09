@@ -5,76 +5,54 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
-    width:880px; height:310px; overflow:hidden;
-    background:#181d2a;
+    width:1168px; height:409px; overflow:hidden;
+    background:#0f1117;
     font-family:'Segoe UI',system-ui,sans-serif;
   }
-
   .bg {
     position:absolute; inset:0;
     background:
-      radial-gradient(ellipse 60% 80% at 85% 50%, rgba(255,100,30,0.08) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 80% at 10% 50%, rgba(50,180,160,0.07) 0%, transparent 60%),
-      linear-gradient(135deg, #13171e 0%, #1a2035 50%, #13171e 100%);
+      radial-gradient(ellipse 70% 90% at 78% 50%, rgba(255,90,20,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 15% 50%, rgba(40,160,140,0.04) 0%, transparent 60%),
+      linear-gradient(160deg, #0c0f16 0%, #151a24 45%, #0d1019 100%);
   }
-  .dots {
-    position:absolute; inset:0;
-    background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
-    background-size:30px 30px;
-  }
-
   .layout {
     position:relative; z-index:2;
     display:flex; align-items:center;
-    height:100%; padding:0 72px; gap:52px;
+    height:100%; padding:0 80px; gap:50px;
   }
-
-  /* Sprite — crop to just the character area (100x65px at coords 100,208 in 302x300 canvas)
-     Scaled 3x → character becomes 300x195px, cropped to 220x190 window centered on it */
-  .sprite-wrap {
+  .crab {
     flex-shrink:0;
-    width:220px; height:230px;
-    overflow:hidden; position:relative;
-    filter:drop-shadow(0 0 30px rgba(255,120,40,0.3)) drop-shadow(0 8px 18px rgba(0,0,0,0.65));
+    filter:drop-shadow(0 6px 20px rgba(0,0,0,0.6));
   }
-  .sprite-wrap img {
-    position:absolute;
-    width:906px; height:900px;  /* 302×300 × 3 */
-    image-rendering:pixelated;
-    /* character at 3x: x=300-600, y=624-819. Show y=609-839 with 15px padding */
-    left:-340px;  /* 110 - 450 (center horizontally on character) */
-    top:-609px;   /* 15px above character top (624-15=609) */
+  .crab img {
+    width:260px; height:234px;
+    display:block; object-fit:contain;
   }
-
-  /* Text */
   .text { flex:1; }
-
   h1 {
-    font-size:90px;
+    font-size:128px;
     font-weight:900;
-    letter-spacing:-3px;
+    letter-spacing:-4px;
     line-height:1;
-    background:linear-gradient(140deg, #7dffd8 0%, #5ee8c0 40%, #3dcaaa 100%);
+    /* match the original teal gradient exactly */
+    background:linear-gradient(160deg, #8dffd8 0%, #5ee8be 35%, #3ecfaa 65%, #52ddb8 100%);
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
-    margin-bottom:10px;
+    margin-bottom:14px;
   }
-
   .sub {
-    font-size:26px;
-    font-weight:400;
-    color:rgba(255,255,255,0.48);
-    letter-spacing:0.3px;
+    font-size:38px;
+    font-weight:500;
+    color:rgba(210,215,225,0.75);
+    letter-spacing:0.2px;
   }
 </style>
 </head>
 <body>
 <div class="bg"></div>
-<div class="dots"></div>
 <div class="layout">
-  <div class="sprite-wrap">
-    <img src="clawd-idle.gif">
-  </div>
+  <div class="crab"><img src="crab.png"></div>
   <div class="text">
     <h1>KILLCLAWD</h1>
     <div class="sub">Kill the Crab</div>
