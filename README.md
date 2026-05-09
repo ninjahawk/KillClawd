@@ -7,6 +7,8 @@
 [![Node](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
+<video src="assets/demo.mp4" width="880" controls autoplay loop muted></video>
+
 </div>
 
 ---
