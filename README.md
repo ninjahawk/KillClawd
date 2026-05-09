@@ -13,7 +13,7 @@
 
 ## 🌟 Overview
 
-**KillClawd** is a desktop pet powered by a local LLM. It runs on your desktop as a transparent always-on-top overlay — a tiny AI crab called Clawd who wanders around, reacts to your cursor, fights mobs, explores castles, rides vehicles, and has genuine opinions about your file organization.
+**KillClawd** is a desktop pet powered by a local LLM. It runs on your desktop as a transparent always-on-top overlay, a tiny AI crab called Clawd who wanders around, reacts to your cursor, fights mobs, explores castles, rides vehicles, and has genuine opinions about your file organization.
 
 Its core: **~2K lines of vanilla JS + Electron + Ollama**.
 
