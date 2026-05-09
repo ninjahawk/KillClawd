@@ -1,13 +1,12 @@
 <div align="center">
 
 <img src="assets/banner-v2.jpeg" width="880"/>
+<img src="assets/demo.gif" width="880"/>
 
 [![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)](https://electronjs.org)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama)](https://ollama.ai)
 [![Node](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-
-<img src="assets/demo.gif" width="880"/>
 
 </div>
 
