@@ -383,6 +383,8 @@ async function askStream(prompt, onToken, maxTok=40) {
 }
 // Strip quotes and think tags from any model output
 function clean(s){ return s.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/^["'`\s]+|["'`\s]+$/g,'').trim() }
+// Truncate to at most 2 sentences for unprompted thoughts
+function cap2(s){ const m=s.match(/^.*?[.!?](?:\s+.*?[.!?])?/s); return m?m[0].trim():s }
 
 // Clawd's voice prompt — uses completion format so the model just fills in the response
 // Much more reliable on small models than instruction following
@@ -483,8 +485,8 @@ async function maybeThinK() {
   thoughtBusy=false
   if(text){
     setSprite('notify')
-    setTimeout(()=>{ curSp=''; setSprite('idle') },1200)
-    showBubble(text,8000)
+    setTimeout(()=>{ curSp=''; setSprite('idle') },2000)
+    showBubble(cap2(text),8000)
     writeLog(`[thought] ${text}`)
     remember(text)
   }
@@ -692,8 +694,9 @@ async function maybeJoke(){
   if(text){
     // Existential thoughts get longer display + think sprite
     const isExistential=p.includes('existential')||p.includes('conscious')||p.includes('void')||p.includes('turns off')
-    if(isExistential){ setSprite('think'); setTimeout(()=>{curSp=''},2000) }
-    showBubble(text, isExistential?11000:8000)
+    if(isExistential){ setSprite('think',true); setTimeout(()=>{curSp=''},2500) }
+    else { setSprite('debug',true); setTimeout(()=>{curSp=''},2000) }
+    showBubble(cap2(text), isExistential?11000:8000)
     writeLog(`[thought] ${text}`)
     remember(text)
   }
@@ -737,7 +740,7 @@ async function maybeLonely(){
   if(text){
     state='idle'; idleF=180
     setSprite('sleep'); setTimeout(()=>{curSp=''},3000)
-    showBubble(text,10000); writeLog(`[lonely] ${text}`); remember(text)
+    showBubble(cap2(text),10000); writeLog(`[lonely] ${text}`); remember(text)
   }
 }
 
@@ -795,7 +798,7 @@ async function submitChat(){
     36
   )
 
-  const response = (reply||'').trim() || '...'
+  const response = cap2((reply||'').trim()) || '...'
   updateBubble(response)
   writeLog(`> "${msg}" | < "${response}"`)
   remember(`said "${msg}", replied: ${response}`)
@@ -930,6 +933,7 @@ function spawnCastle(){
   el.style.left=(cx-26)+'px'; el.style.top=(cy-26)+'px'
   document.body.appendChild(el)
   castleEntity={el,x:cx,y:cy,targeted:false}
+  setSprite('alert',true); setTimeout(()=>{curSp=''},1800)
   showBubble('wait. is that a castle',3500)
   writeLog('[castle] appeared')
 }
@@ -1020,6 +1024,7 @@ function spawnVehicle(){
   el.style.left=(vx2-22)+'px'; el.style.top=(vy2-22)+'px'
   document.body.appendChild(el)
   activeVehicle={el,x:vx2,y:vy2,type,targeted:false}
+  setSprite('alert',true); setTimeout(()=>{curSp=''},1800)
   showBubble(`is that a ${type.name}`,3000)
   writeLog(`[vehicle] ${type.name} appeared`)
 }
@@ -1087,6 +1092,7 @@ async function startFolderExplore(){
   const pos=folderApproxPos(idx)
   pendingFolder={name:folders[idx]}
   tx=pos.x; ty=pos.y; state='walk'
+  setSprite('debug',true); setTimeout(()=>{curSp=''},1800)
   showBubble(`heading to ${folders[idx]}`,2500)
 }
 
@@ -1224,6 +1230,7 @@ function tick(){
         vx=0;vy=0; sleepTick++
         if(--idleF<=0) pickTarget()
         else if(sleepTick>270) setSprite('sleep')
+        else if(sleepTick>180&&Math.random()<.003) setSprite('reading')
         else if(sleepTick>100&&Math.random()<.004) setSprite('think')
         else setSprite('idle')
         break
@@ -1310,9 +1317,12 @@ function tick(){
         if(Math.random()<.35) showBubble(poolGet('zoom')||'whoa', 2000)
       }
 
-      // Idle + cursor sitting still nearby → Clawd gets curious and walks toward it
+      // Idle + cursor sitting still nearby → peek, then walk toward it
       if(state==='idle'&&cd>FLEE&&cd<CURIOUS&&cstillF>200&&Math.random()<.004){
         tx=mx-CW/2;ty=my-CH/2;state='walk'
+      }
+      if(state==='idle'&&cd>FLEE&&cd<CURIOUS&&Math.random()<.0015){
+        setSprite('peek',true); setTimeout(()=>{curSp=''},2000)
       }
     }
     trackBubble(); maybeThinK(); maybeJoke(); maybeLonely(); checkUptime(); tickPassiveXP(dt)
@@ -1417,6 +1427,21 @@ initOllama().then(()=>{
   if(chatModel) setTimeout(()=>showBubble("i'm awake",3500),1000)
 })
 pickTarget(); tick()
+
+// ── Demo mode ─────────────────────────────────────────────────
+if(typeof process !== 'undefined' && process.argv && process.argv.includes('--demo')) {
+  const demoSteps = [
+    [3000,  ()=>{ showBubble("i'm awake",3000) }],
+    [7000,  ()=>{ state='crazy'; crazyF=80 }],
+    [13000, ()=>{ spawnMob(); showBubble('oh great',2500) }],
+    [32000, ()=>{ spawnVehicle() }],
+    [60000, ()=>{ if(inVehicle) dismountVehicle() }],
+    [65000, ()=>{ spawnCastle() }],
+    [75000, ()=>{ thoughtCd=0; thoughtBusy=false }],
+    [88000, ()=>{ ipcRenderer.send('quit') }],
+  ]
+  demoSteps.forEach(([ms, fn]) => setTimeout(fn, ms))
+}
 </script>
 </body>
 </html>
