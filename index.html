@@ -163,6 +163,15 @@ body { width:100vw; height:100vh; overflow:hidden; background:transparent; }
 </div>
 
 <div id="ctx">
+  <div id="ctx-xp-bar" style="padding:8px 14px 6px;border-bottom:1px solid rgba(255,255,255,0.07)">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:4px">
+      <span id="ctx-xp-name">clawd</span><span id="ctx-xp-level">lv 1</span>
+    </div>
+    <div style="background:rgba(255,255,255,0.08);border-radius:3px;height:5px;overflow:hidden">
+      <div id="ctx-xp-fill" style="background:linear-gradient(90deg,#ff6600,#ffaa00);height:100%;width:0%;transition:width 0.4s ease;border-radius:3px"></div>
+    </div>
+    <div id="ctx-xp-label" style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:3px">0 / 100 xp</div>
+  </div>
   <div class="ctx-item" id="ctx-talk">💬 talk to him</div>
   <div class="ctx-item" id="ctx-think">🤔 what's he thinking</div>
   <div class="ctx-item" id="ctx-crisis">😰 existential crisis</div>
@@ -481,6 +490,66 @@ async function maybeThinK() {
   }
 }
 
+// ── XP / Level system ─────────────────────────────────────────
+const XP_FILE = path.join(os.homedir(), 'Desktop', 'clawd-xp.json')
+let xp = 0, level = 1, totalXP = 0
+
+// Load saved XP
+try {
+  const saved = JSON.parse(fs.readFileSync(XP_FILE, 'utf8'))
+  xp = saved.xp || 0; level = saved.level || 1; totalXP = saved.totalXP || 0
+} catch {}
+
+const XP_THRESHOLDS = [0,100,250,450,700,1000,1400,1900,2500,3200,4000]
+// XP to reach next level — increases each level
+function xpForLevel(lv) { return XP_THRESHOLDS[Math.min(lv, XP_THRESHOLDS.length-1)] || lv*500 }
+
+const LEVEL_NAMES = [
+  'just a crab','desktop newcomer','getting comfortable','runs like he owns it',
+  'knows too much','cursor veteran','shadow of the desktop','unstoppable',
+  'ancient being','beyond understanding','the clawd eternal'
+]
+
+function gainXP(amount, reason) {
+  xp += amount; totalXP += amount
+  // Level up?
+  while (xp >= xpForLevel(level)) {
+    xp -= xpForLevel(level); level++
+    const name = LEVEL_NAMES[Math.min(level-1, LEVEL_NAMES.length-1)]
+    showBubble(`level ${level}. ${name}.`, 6000)
+    writeLog(`[levelup] lv${level} — ${name} (+${amount}xp from ${reason})`)
+    setSprite('celeb', true); setTimeout(()=>{ curSp='' },2500)
+    // Spawn weapon burst on level up
+    for(let i=0;i<4;i++) setTimeout(()=>spawnWeapon(), i*150)
+  }
+  saveXP()
+  updateXPBar()
+}
+
+function saveXP() {
+  try { fs.writeFileSync(XP_FILE, JSON.stringify({xp, level, totalXP})) } catch {}
+}
+
+function updateXPBar() {
+  const need = xpForLevel(level)
+  const pct  = Math.min(100, Math.round(xp / need * 100))
+  const name = LEVEL_NAMES[Math.min(level-1, LEVEL_NAMES.length-1)]
+  document.getElementById('ctx-xp-fill').style.width = pct + '%'
+  document.getElementById('ctx-xp-level').textContent = 'lv ' + level
+  document.getElementById('ctx-xp-name').textContent = name
+  document.getElementById('ctx-xp-label').textContent = `${xp} / ${need} xp  ·  ${totalXP} total`
+}
+
+// Passive XP — earn just for being alive
+let passiveXPCd = 30000
+function tickPassiveXP(dt) {
+  passiveXPCd -= dt
+  if (passiveXPCd <= 0) {
+    passiveXPCd = 30000
+    gainXP(1, 'surviving')
+  }
+}
+
 // ── Response pools — large varied lists, rotate without back-to-back repeats,
 //    background model refresh so they never fully cycle ─────────────────────
 const pools = {
@@ -730,6 +799,7 @@ async function submitChat(){
   updateBubble(response)
   writeLog(`> "${msg}" | < "${response}"`)
   remember(`said "${msg}", replied: ${response}`)
+  gainXP(5, 'chat')
 
   const r=response.toLowerCase()
   let action='none'
@@ -829,6 +899,7 @@ function startCombat(){
         const w=poolGet('win')||'handled'
         showBubble(w,4000)
         writeLog(`[mob] defeated — "${w}"`)
+        gainXP(25, 'mob defeated')
         nextMobIn=Infinity
       },450)
     },700)
@@ -1244,7 +1315,7 @@ function tick(){
         tx=mx-CW/2;ty=my-CH/2;state='walk'
       }
     }
-    trackBubble(); maybeThinK(); maybeJoke(); maybeLonely(); checkUptime()
+    trackBubble(); maybeThinK(); maybeJoke(); maybeLonely(); checkUptime(); tickPassiveXP(dt)
   } else if(folderOpen||castleOpen){
     // Still track bubble and events when in panels
     tickEvents(dt)
@@ -1282,6 +1353,7 @@ clawdEl.addEventListener('mousedown',e=>{
   e.preventDefault(); dragging=true; dragVx=0; dragVy=0
   setSprite('happy',true)
   showBubble(poolGet('grab')||'hey', 3000)
+  gainXP(2, 'grabbed')
   const r=clawdEl.getBoundingClientRect();dox=e.clientX-r.left;doy=e.clientY-r.top
 })
 document.addEventListener('mouseup',()=>{
@@ -1292,6 +1364,7 @@ document.addEventListener('mouseup',()=>{
     throwing=true; throwVx=dragVx*3.5; throwVy=dragVy*3.5
     state='crazy'; crazyF=60
     showBubble(poolGet('throw')||'AAAA', 2500)
+    gainXP(3, 'thrown')
   } else {
     pickTarget()
   }
@@ -1307,7 +1380,7 @@ function showCtx(e){
   let cx=e.clientX, cy=e.clientY
   if(cx+165>SW) cx=SW-170; if(cy+140>SH) cy=SH-145
   ctxEl.style.left=cx+'px'; ctxEl.style.top=cy+'px'
-  ctxEl.classList.add('show'); ctxOpen=true; ipcRenderer.send('mouse-over')
+  ctxEl.classList.add('show'); ctxOpen=true; updateXPBar(); ipcRenderer.send('mouse-over')
 }
 function hideCtx(){ ctxEl.classList.remove('show'); ctxOpen=false; if(!chatOpen&&!folderOpen&&!castleOpen) ipcRenderer.send('mouse-out') }
 clawdEl.addEventListener('contextmenu',showCtx)
@@ -1338,8 +1411,9 @@ document.getElementById('ctx-vehicle').addEventListener('click',()=>{ hideCtx();
 document.getElementById('ctx-quit').addEventListener('click',()=>ipcRenderer.send('quit'))
 
 // ── Boot ──────────────────────────────────────────────────────
+updateXPBar()
 initOllama().then(()=>{
-  writeLog(`[boot] chat:${chatModel||'none'} bg:${bgModel||'none'}`)
+  writeLog(`[boot] lv${level} (${xp}xp) — model: ${chatModel||'none'}`)
   if(chatModel) setTimeout(()=>showBubble("i'm awake",3500),1000)
 })
 pickTarget(); tick()

@@ -1,10 +1,6 @@
 <div align="center">
 
-```
-  ╔═══════════════════════════════╗
-  ║   🦀  K I L L C L A W D  🦀  ║
-  ╚═══════════════════════════════╝
-```
+<img src="assets/banner.png" width="880"/>
 
 [![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)](https://electronjs.org)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama)](https://ollama.ai)

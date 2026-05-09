@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width:880px; height:440px; overflow:hidden;
+    background:#080b12;
+    font-family:'Segoe UI',system-ui,sans-serif;
+    color:#fff;
+  }
+
+  /* ── Background ── */
+  .bg {
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 60% 50% at 75% 50%, rgba(255,100,20,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 60% at 20% 50%, rgba(40,80,180,0.07) 0%, transparent 70%),
+      linear-gradient(135deg, #080b12 0%, #0d1020 50%, #080b12 100%);
+  }
+  .dots {
+    position:absolute; inset:0;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  /* Glow blobs */
+  .glow-r {
+    position:absolute; right:-60px; top:50%; transform:translateY(-50%);
+    width:400px; height:400px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,90,10,0.1) 0%, transparent 65%);
+    pointer-events:none;
+  }
+  .glow-l {
+    position:absolute; left:-80px; top:50%; transform:translateY(-50%);
+    width:350px; height:350px; border-radius:50%;
+    background:radial-gradient(circle, rgba(40,100,220,0.08) 0%, transparent 65%);
+    pointer-events:none;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    position:relative; z-index:2;
+    display:flex; align-items:center;
+    height:100%; padding:0 50px 0 52px; gap:0;
+  }
+
+  /* ── Left: branding ── */
+  .left { flex:0 0 320px; }
+
+  .eyebrow {
+    display:flex; align-items:center; gap:8px;
+    font-size:11px; font-weight:600; letter-spacing:.14em;
+    color:rgba(255,255,255,0.35); text-transform:uppercase;
+    margin-bottom:14px;
+  }
+  .eyebrow-dot {
+    width:6px; height:6px; border-radius:50%;
+    background:#ff6010;
+    box-shadow:0 0 8px rgba(255,96,16,0.8);
+  }
+
+  h1 {
+    font-size:58px; font-weight:800; line-height:1;
+    letter-spacing:-2px;
+    background:linear-gradient(135deg, #fff 30%, rgba(255,160,80,0.85) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    margin-bottom:12px;
+  }
+
+  .tagline {
+    font-size:14px; color:rgba(255,255,255,0.45);
+    line-height:1.55; max-width:260px; margin-bottom:24px;
+  }
+
+  .pills {
+    display:flex; flex-wrap:wrap; gap:7px; margin-bottom:28px;
+  }
+  .pill {
+    padding:4px 10px; border-radius:100px;
+    font-size:11px; font-weight:600;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.1);
+    color:rgba(255,255,255,0.55);
+    letter-spacing:.02em;
+  }
+  .pill.orange { background:rgba(255,96,16,0.12); border-color:rgba(255,96,16,0.25); color:rgba(255,160,80,0.9); }
+  .pill.blue   { background:rgba(40,100,220,0.12); border-color:rgba(40,100,220,0.25); color:rgba(100,160,255,0.9); }
+
+  .stack {
+    display:flex; align-items:center; gap:8px;
+    font-size:11px; color:rgba(255,255,255,0.25);
+  }
+  .stack-badge {
+    padding:3px 8px; border-radius:4px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.07);
+    font-family:'Consolas',monospace; font-size:10px;
+    color:rgba(255,255,255,0.35);
+  }
+
+  /* ── Center: character ── */
+  .center {
+    flex:0 0 200px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative;
+  }
+
+  .clawd-wrap {
+    position:relative; width:140px; height:140px;
+  }
+  .clawd-wrap img {
+    width:140px; height:140px; object-fit:contain;
+    filter:drop-shadow(0 0 20px rgba(255,100,20,0.25)) drop-shadow(0 8px 16px rgba(0,0,0,0.6));
+  }
+
+  .bubble {
+    position:absolute; top:-52px; left:50%; transform:translateX(-24px);
+    background:rgba(255,255,255,0.96); color:#18182a;
+    border-radius:9px; padding:6px 11px;
+    font:500 11.5px/1.45 'Segoe UI',system-ui,sans-serif;
+    white-space:nowrap;
+    box-shadow:0 3px 12px rgba(0,0,0,0.35);
+  }
+  .bubble::after {
+    content:''; position:absolute;
+    bottom:-6px; left:16px;
+    border:6px solid transparent;
+    border-top-color:rgba(255,255,255,0.96); border-bottom:none;
+  }
+
+  .xp-strip {
+    margin-top:14px; width:130px;
+    background:rgba(255,255,255,0.06); border-radius:100px;
+    padding:4px 10px;
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:10px; color:rgba(255,255,255,0.35);
+    border:1px solid rgba(255,255,255,0.08);
+  }
+  .xp-bar-wrap {
+    flex:1; height:3px; background:rgba(255,255,255,0.08);
+    border-radius:2px; margin:0 8px; overflow:hidden;
+  }
+  .xp-bar { height:100%; width:62%; background:linear-gradient(90deg,#ff6010,#ffaa30); border-radius:2px; }
+
+  /* ── Right: UI mockup ── */
+  .right {
+    flex:1;
+    display:flex; gap:12px; justify-content:flex-end; align-items:center;
+  }
+
+  /* Right-click menu */
+  .ctx-mock {
+    width:162px;
+    background:rgba(13,15,24,0.97);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:9px; overflow:hidden;
+    box-shadow:0 12px 40px rgba(0,0,0,0.75);
+  }
+  .ctx-xp {
+    padding:8px 12px 6px;
+    border-bottom:1px solid rgba(255,255,255,0.07);
+  }
+  .ctx-xp-top {
+    display:flex; justify-content:space-between;
+    font-size:9.5px; color:rgba(255,255,255,0.4); margin-bottom:4px;
+  }
+  .ctx-xp-track {
+    height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;
+  }
+  .ctx-xp-fill { height:100%; width:55%; background:linear-gradient(90deg,#ff6010,#ffaa30); }
+  .ctx-xp-sub { font-size:8.5px; color:rgba(255,255,255,0.22); margin-top:3px; }
+
+  .ctx-row {
+    padding:6.5px 12px; font-size:11.5px; color:#bbb;
+    display:flex; align-items:center; gap:8px;
+  }
+  .ctx-row.hl { background:rgba(255,255,255,0.07); color:#fff; }
+  .ctx-row.dim { color:rgba(255,255,255,0.35); font-size:10.5px; }
+  .ctx-sep2 { height:1px; background:rgba(255,255,255,0.06); margin:2px 0; }
+
+  /* Chat bubble */
+  .chat-mock {
+    width:175px;
+    background:rgba(13,15,24,0.96);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:10px; overflow:hidden;
+    box-shadow:0 8px 28px rgba(0,0,0,0.65);
+  }
+  .chat-label { padding:8px 11px 4px; font-size:9px; color:rgba(255,255,255,0.28); }
+  .chat-msg {
+    margin:0 8px; padding:6px 8px;
+    background:rgba(255,255,255,0.04);
+    border-radius:6px; font-size:11px; color:#ccc;
+    border:1px solid rgba(255,255,255,0.06);
+    margin-bottom:4px;
+  }
+  .chat-msg.user { color:rgba(255,255,255,0.45); font-size:10.5px; }
+  .chat-msg.clawd { color:#d4d4ff; font-style:italic; }
+  .chat-row2 {
+    display:flex; gap:6px; padding:0 8px 8px;
+  }
+  .chat-input-mock {
+    flex:1; height:26px; background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.1); border-radius:6px;
+  }
+  .chat-send-mock {
+    width:26px; height:26px; background:rgba(255,255,255,0.08);
+    border-radius:6px; display:flex; align-items:center; justify-content:center;
+    font-size:12px; color:#888;
+  }
+
+  /* ── Bottom bar ── */
+  .bottom-bar {
+    position:absolute; bottom:0; left:0; right:0; z-index:3;
+    height:38px;
+    background:rgba(255,255,255,0.025);
+    border-top:1px solid rgba(255,255,255,0.05);
+    display:flex; align-items:center; gap:0;
+    padding:0 52px;
+  }
+  .stat {
+    display:flex; align-items:center; gap:8px;
+    padding:0 20px 0 0;
+    font-size:10.5px; color:rgba(255,255,255,0.3);
+    border-right:1px solid rgba(255,255,255,0.06);
+    margin-right:20px;
+  }
+  .stat:last-child { border-right:none; }
+  .stat-dot { width:5px; height:5px; border-radius:50%; }
+  .stat-dot.green { background:#44dd11; box-shadow:0 0 6px rgba(68,221,17,0.6); }
+  .stat-dot.orange { background:#ff6010; box-shadow:0 0 6px rgba(255,96,16,0.6); }
+  .stat-dot.blue { background:#4488ff; box-shadow:0 0 6px rgba(68,136,255,0.6); }
+
+  /* mob floating nearby */
+  .mob-float {
+    position:absolute; z-index:3;
+    font-size:28px;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    opacity:0.85;
+  }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="dots"></div>
+<div class="glow-r"></div>
+<div class="glow-l"></div>
+
+<!-- floating mobs -->
+<div class="mob-float" style="top:62px;left:388px;transform:rotate(-8deg)">👾</div>
+<div class="mob-float" style="top:130px;left:420px;font-size:20px;opacity:0.4">💥</div>
+
+<div class="layout">
+  <!-- LEFT -->
+  <div class="left">
+    <div class="eyebrow">
+      <div class="eyebrow-dot"></div>
+      desktop pet · local llm
+    </div>
+
+    <h1>KillClawd</h1>
+
+    <div class="tagline">
+      A tiny AI crab who lives on your desktop, has genuine opinions, and will not be told what to do.
+    </div>
+
+    <div class="pills">
+      <div class="pill orange">ollama-powered</div>
+      <div class="pill blue">electron</div>
+      <div class="pill">throw physics</div>
+      <div class="pill">xp system</div>
+      <div class="pill">fully offline</div>
+    </div>
+
+    <div class="stack">
+      <div class="stack-badge">Node 24</div>
+      <div class="stack-badge">Electron 28</div>
+      <div class="stack-badge">qwen:latest</div>
+    </div>
+  </div>
+
+  <!-- CENTER: character -->
+  <div class="center">
+    <div class="clawd-wrap">
+      <div class="bubble">i live here now</div>
+      <img src="clawd-conducting.gif">
+    </div>
+    <div class="xp-strip">
+      <span>lv 3</span>
+      <div class="xp-bar-wrap"><div class="xp-bar"></div></div>
+      <span>runs like he owns it</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: UI mockups -->
+  <div class="right">
+    <!-- Chat -->
+    <div class="chat-mock">
+      <div class="chat-label">say something</div>
+      <div class="chat-msg user">go to sleep</div>
+      <div class="chat-msg clawd">fine but only because i want to</div>
+      <div class="chat-row2">
+        <div class="chat-input-mock"></div>
+        <div class="chat-send-mock">→</div>
+      </div>
+    </div>
+
+    <!-- Right-click menu -->
+    <div class="ctx-mock">
+      <div class="ctx-xp">
+        <div class="ctx-xp-top"><span>runs like he owns it</span><span>lv 3</span></div>
+        <div class="ctx-xp-track"><div class="ctx-xp-fill"></div></div>
+        <div class="ctx-xp-sub">188 / 450 xp · 638 total</div>
+      </div>
+      <div class="ctx-row">💬 talk to him</div>
+      <div class="ctx-row">🤔 what's he thinking</div>
+      <div class="ctx-row hl">😰 existential crisis</div>
+      <div class="ctx-sep2"></div>
+      <div class="ctx-row">😴 make him sleep</div>
+      <div class="ctx-row">⚡ go crazy</div>
+      <div class="ctx-sep2"></div>
+      <div class="ctx-row dim">👾 spawn mob</div>
+      <div class="ctx-row dim">🏰 spawn castle</div>
+      <div class="ctx-row dim">🚀 spawn vehicle</div>
+      <div class="ctx-sep2"></div>
+      <div class="ctx-row dim">✕ quit</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar">
+  <div class="stat"><div class="stat-dot green"></div>ollama running</div>
+  <div class="stat"><div class="stat-dot orange"></div>3 mobs defeated</div>
+  <div class="stat"><div class="stat-dot blue"></div>38 min uptime</div>
+  <div class="stat">journal: 24 entries</div>
+  <div class="stat" style="margin-left:auto;padding-right:0;border:none">github.com/ninjahawk/KillClawd</div>
+</div>
+
+</body>
+</html>
