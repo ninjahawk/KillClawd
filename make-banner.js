@@ -4,7 +4,7 @@ const fs   = require('fs')
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({
-    width: 880, height: 440,
+    width: 880, height: 310,
     show: false,
     webPreferences: { nodeIntegration: false }
   })
@@ -15,8 +15,8 @@ app.whenReady().then(async () => {
   await new Promise(r => setTimeout(r, 1800))
 
   const img  = await win.webContents.capturePage()
-  const out  = path.join(__dirname, 'assets', 'banner.png')
-  fs.writeFileSync(out, img.toPNG())
+  const out  = path.join(__dirname, 'assets', 'banner.jpg')
+  fs.writeFileSync(out, img.toJPEG(95))
 
   console.log('Saved:', out)
   app.quit()
