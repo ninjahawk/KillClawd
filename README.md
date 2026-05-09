@@ -31,13 +31,12 @@ ollama pull qwen:latest
 ```
 
 ```bash
-# 2. Clone and launch
+# 2. Clone
 git clone https://github.com/ninjahawk/KillClawd.git
 cd KillClawd
-double-click clawd.bat
 ```
 
-`clawd.bat` installs dependencies on first run, then starts the app. After that, just double-click it every time.
+Then double-click **`clawd.bat`**. It installs dependencies on first run, then starts the app — just double-click it every time after that.
 
 > `qwen:latest` (4B) is the recommended model — fast enough for real-time chat. Any Ollama model works. The app auto-detects what you have.
 
