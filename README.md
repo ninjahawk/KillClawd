@@ -5,65 +5,41 @@
 
 [![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)](https://electronjs.org)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama)](https://ollama.ai)
-[![Node](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows)](https://github.com/ninjahawk/KillClawd)
 
 </div>
 
 ---
 
-## 🌟 Overview
+**KillClawd** is a desktop pet powered by a local LLM. It runs as a transparent always-on-top overlay — a tiny AI crab called Clawd who wanders your desktop, reacts to your cursor, fights mobs, explores castles, rides vehicles, and has genuine opinions about your file organization.
 
-**KillClawd** is a desktop pet powered by a local LLM. It runs on your desktop as a transparent always-on-top overlay, a tiny AI crab called Clawd who wanders around, reacts to your cursor, fights mobs, explores castles, rides vehicles, and has genuine opinions about your file organization.
-
-Its core: **~2K lines of vanilla JS + Electron + Ollama**.
+Its core: **~2K lines of vanilla JS + Electron + Ollama**. No cloud. No subscription. The model runs entirely on your machine.
 
 > **Design philosophy**: Clawd should feel like he's doing his own thing and you're interrupting him — not the other way around.
-
-
-
----
-
-## 📋 Features
-
-- **LLM-powered personality** — every response goes through a local Ollama model. Dry, blunt, occasionally existential.
-- **Cursor awareness** — Clawd notices when you follow him, escalates from "i see you" to "i will remember this"
-- **Throw physics** — grab and fling him across the screen, he bounces off edges
-- **Mobs** — spawn 👾🦠👹🤖🐛 enemies, watch Clawd fight them with weapon flash effects
-- **Castle** — Clawd explores a castle, generates observations about what he finds inside
-- **Vehicles** — rocket 🚀, UFO 🛸, race car 🏎️ — Clawd rides them at high speed and rams mobs
-- **Chat** — double-click to talk to him, he responds in character and may or may not do what you ask
-- **Existential dread** — unprompted thoughts about consciousness, the void, and why he keeps running in circles
-- **Uptime milestones** — at 5, 15, 30, 60, 120 minutes he marks the moment
-- **Loneliness** — notices when the cursor hasn't moved in a while
-- **Journal** — writes `clawd-journal.txt` to your desktop, a running log of everything he thinks and does
-- **Response pools** — large rotating pools of varied responses, background-refreshed by the model so nothing repeats
 
 ---
 
 ## 🚀 Quick Start
 
+**Requirements:** Windows, [Node.js 18+](https://nodejs.org), [Ollama](https://ollama.com)
+
 ```bash
-# 1. Clone
-git clone https://github.com/ninjahawk/KillClawd.git
-cd KillClawd
-
-# 2. Install
-npm install
-
-# 3. Make sure Ollama is running with at least one model
-ollama pull qwen:latest   # fast 4B model recommended for chat
-# or any other model you have
-
-# 4. Launch
-npm start
+# 1. Pull a model (do this once)
+ollama pull qwen:latest
 ```
 
-Or double-click `clawd.bat` on the desktop (if it exists from a previous run).
+```bash
+# 2. Clone and launch
+git clone https://github.com/ninjahawk/KillClawd.git
+cd KillClawd
+double-click clawd.bat
+```
 
-**Requirements:** Node.js 18+, Ollama running locally on port 11434.
+`clawd.bat` installs dependencies on first run, then starts the app. After that, just double-click it every time.
 
-The app auto-detects your fastest available model. `qwen:latest` (4B) is used for chat responses, larger GPU-accelerated models for background thoughts/observations.
+> `qwen:latest` (4B) is the recommended model — fast enough for real-time chat. Any Ollama model works. The app auto-detects what you have.
 
 ---
 
@@ -94,6 +70,23 @@ The app auto-detects your fastest available model. `qwen:latest` (4B) is used fo
 
 ---
 
+## 📋 Features
+
+- **LLM-powered personality** — every response goes through a local Ollama model. Dry, blunt, occasionally existential.
+- **Cursor awareness** — Clawd notices when you follow him, escalates from "i see you" to "i will remember this"
+- **Throw physics** — grab and fling him across the screen, he bounces off edges
+- **Mobs** — spawn 👾🦠👹🤖🐛 enemies, watch Clawd fight them with weapon flash effects
+- **Castle** — Clawd explores a castle, generates observations about what he finds inside
+- **Vehicles** — rocket 🚀, UFO 🛸, race car 🏎️ — Clawd rides them at high speed and rams mobs
+- **Chat** — double-click to talk to him, he responds in character and may or may not do what you ask
+- **Existential dread** — unprompted thoughts about consciousness, the void, and why he keeps running in circles
+- **Uptime milestones** — at 5, 15, 30, 60, 120 minutes he marks the moment
+- **Loneliness** — notices when the cursor hasn't moved in a while
+- **Journal** — writes `clawd-journal.txt` to your desktop, a running log of everything he thinks and does
+- **Response pools** — large rotating pools of varied responses, background-refreshed by the model so nothing repeats
+
+---
+
 ## 🧠 How It Works
 
 ### Model Architecture
@@ -110,13 +103,13 @@ Uses **completion format** instead of instruction following — far more reliabl
 ```
 Clawd is a tiny sarcastic crab on a desktop. Speaks in lowercase, under 12 words.
 
-jedin: go to sleep
+you: go to sleep
 Clawd: fine but only because i want to
 
-jedin: what are you doing
+you: what are you doing
 Clawd: minding my business unlike some people
 
-jedin: {your message}
+you: {your message}
 Clawd:
 ```
 
@@ -144,22 +137,18 @@ Additional systems that fire independently:
 
 ```
 KillClawd/
-├── main.js          # Electron main — transparent overlay window, IPC, VRAM unload on quit
-├── index.html       # Everything else — movement AI, model calls, all game systems
-├── assets/          # Clawd sprite GIFs (from clawd-on-desk)
-│   ├── clawd-idle.gif
-│   ├── clawd-carrying.gif
-│   ├── clawd-conducting.gif
-│   └── ... (17 total)
-├── package.json
-└── clawd.bat        # One-click launcher (Windows)
+├── main.js        # Electron main — transparent overlay window, IPC, VRAM unload on quit
+├── index.html     # Everything else — movement AI, model calls, all game systems
+├── clawd.bat      # One-click launcher (installs deps on first run)
+├── assets/        # Clawd sprite GIFs (from clawd-on-desk)
+└── package.json
 ```
 
 ---
 
 ## 🦀 Sprite Credits
 
-All character sprites are from [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk) by rullerzhou-afk. The Clawd character was designed for the Claude Code desktop pet project.
+All character sprites are from [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk) by rullerzhou-afk.
 
 ---
 
