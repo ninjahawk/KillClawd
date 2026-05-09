@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:100vw; height:100vh; overflow:hidden; background:transparent; }
+
+#clawd { position:absolute; width:110px; height:110px; cursor:grab; user-select:none; }
+#clawd img { width:100%; height:100%; object-fit:contain; display:block; pointer-events:none; }
+
+#bubble {
+  position:absolute; pointer-events:none;
+  background:rgba(255,255,255,0.97); color:#18182a;
+  border-radius:9px; padding:6px 10px;
+  font:500 11px/1.5 'Segoe UI',system-ui,sans-serif;
+  max-width:155px; word-break:break-word;
+  box-shadow:0 2px 10px rgba(0,0,0,0.2);
+  opacity:0; transition:opacity 0.18s; z-index:100;
+}
+#bubble.show { opacity:1; }
+#bubble::after {
+  content:''; position:absolute; bottom:-6px; left:14px;
+  border:6px solid transparent; border-top-color:rgba(255,255,255,0.97); border-bottom:none;
+}
+
+/* ── Chat ── */
+#chat {
+  position:absolute; width:215px; display:none; flex-direction:column; gap:7px;
+  background:rgba(13,15,24,0.96); border:1px solid rgba(255,255,255,0.12);
+  border-radius:10px; padding:10px 11px 11px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.65); z-index:600;
+}
+#chat.open { display:flex; animation:pop .15s ease; }
+@keyframes pop { from{opacity:0;transform:scale(.92) translateY(5px)} to{opacity:1;transform:none} }
+#chat-label { font:10px 'Segoe UI',sans-serif; color:rgba(255,255,255,.3); }
+#chat-row   { display:flex; gap:6px; }
+#chat-input { flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:6px; color:#eee; font:12px 'Segoe UI',sans-serif; padding:5px 8px; outline:none; }
+#chat-input:focus { border-color:rgba(255,255,255,.3); }
+#chat-send  { background:rgba(255,255,255,.1); border:none; border-radius:6px; color:#ccc; font-size:14px; padding:0 9px; cursor:pointer; }
+#chat-send:hover { background:rgba(255,255,255,.2); }
+
+/* ── Folder panel ── */
+#fp {
+  position:absolute; width:225px; display:none; overflow:hidden; z-index:400;
+  background:rgba(13,15,24,0.96); border:1px solid rgba(255,255,255,.1); border-radius:11px;
+  font-family:'Segoe UI',system-ui,sans-serif; color:#ddd;
+  box-shadow:0 12px 40px rgba(0,0,0,.75);
+}
+#fp.open { display:block; animation:pop .16s ease; }
+#fp-head { display:flex; align-items:center; gap:8px; padding:9px 10px 8px; background:rgba(255,255,255,.04); border-bottom:1px solid rgba(255,255,255,.07); }
+#fp-sprite { width:52px; height:52px; object-fit:contain; flex-shrink:0; }
+#fp-head-info { flex:1; min-width:0; }
+#fp-head-name { font-size:12px; font-weight:700; color:#eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#fp-head-sub  { font-size:9.5px; color:#555; margin-top:2px; }
+#fp-close { background:none; border:none; color:#555; font-size:17px; cursor:pointer; padding:0 2px; line-height:1; flex-shrink:0; }
+#fp-close:hover { color:#bbb; }
+#fp-files { display:flex; flex-wrap:wrap; gap:3px; padding:7px 8px 3px; }
+.fp-chip { display:flex; align-items:center; gap:3px; background:rgba(255,255,255,.05); border-radius:4px; padding:2px 5px; font-size:10px; color:#999; max-width:100px; }
+.fp-chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#fp-meta { padding:1px 9px 5px; font-size:9px; color:#444; }
+.fp-feed-label { padding:4px 9px 2px; font-size:9px; font-weight:700; color:#444; text-transform:uppercase; letter-spacing:.07em; border-top:1px solid rgba(255,255,255,.05); }
+#fp-msgs { padding:3px 7px 9px; max-height:130px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+#fp-msgs::-webkit-scrollbar { width:3px; }
+#fp-msgs::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); border-radius:2px; }
+.obs { background:rgba(255,255,255,.04); border-radius:5px; padding:4px 7px; font-size:10.5px; color:#bbb; line-height:1.45; animation:obsIn .18s ease; }
+@keyframes obsIn { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:none} }
+.obs-about { font-size:9px; color:#484860; margin-bottom:1px; }
+.obs-dots  { padding:4px 7px; font-size:10.5px; color:#444; font-style:italic; }
+
+/* ── Castle panel ── */
+#castle-panel {
+  position:absolute; width:200px; display:none; overflow:hidden; z-index:400;
+  background:rgba(20,14,10,0.97); border:1px solid rgba(180,120,60,.25); border-radius:10px;
+  font-family:'Segoe UI',system-ui,sans-serif; color:#d4b896;
+  box-shadow:0 12px 40px rgba(0,0,0,.8);
+}
+#castle-panel.open { display:block; animation:pop .16s ease; }
+#castle-head { display:flex; align-items:center; gap:8px; padding:8px 10px; background:rgba(255,255,255,.03); border-bottom:1px solid rgba(180,120,60,.15); }
+#castle-sprite { width:48px; height:48px; object-fit:contain; flex-shrink:0; }
+#castle-title { flex:1; font-size:12px; font-weight:700; color:#d4b896; }
+#castle-exit  { background:none; border:none; color:#6b5040; font-size:16px; cursor:pointer; line-height:1; }
+#castle-exit:hover { color:#d4b896; }
+#castle-msgs  { padding:4px 8px 10px; max-height:110px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+#castle-msgs::-webkit-scrollbar { width:3px; }
+.castle-obs { background:rgba(180,120,60,.07); border-radius:5px; padding:4px 7px; font-size:10.5px; color:#c4a080; line-height:1.45; animation:obsIn .18s ease; }
+.castle-dots { padding:4px 7px; font-size:10.5px; color:#6b5040; font-style:italic; }
+
+/* ── Entities ── */
+.mob-entity {
+  position:absolute; font-size:34px; pointer-events:none; z-index:50;
+  animation:mob-float .5s ease-in-out infinite alternate;
+  transform-origin:center;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));
+}
+@keyframes mob-float { from{transform:translateY(0)} to{transform:translateY(-4px)} }
+.mob-entity.hit { animation:mob-hit .25s ease !important; }
+@keyframes mob-hit { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5) rotate(15deg)} }
+.mob-entity.dying { animation:mob-die .4s ease forwards !important; }
+@keyframes mob-die { to{transform:scale(0) rotate(360deg); opacity:0} }
+
+.castle-entity {
+  position:absolute; font-size:52px; pointer-events:none; z-index:50;
+  animation:castle-glow 2s ease-in-out infinite alternate;
+  filter:drop-shadow(0 0 8px rgba(255,180,60,.3));
+}
+@keyframes castle-glow { from{filter:drop-shadow(0 0 5px rgba(255,180,60,.2))} to{filter:drop-shadow(0 0 12px rgba(255,180,60,.5))} }
+
+.vehicle-entity {
+  position:absolute; font-size:44px; pointer-events:none; z-index:50;
+  animation:vehicle-bob .6s ease-in-out infinite alternate;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,.4));
+}
+@keyframes vehicle-bob { from{transform:translateY(0) rotate(-2deg)} to{transform:translateY(-5px) rotate(2deg)} }
+.vehicle-mounted { position:absolute !important; animation:none !important; font-size:50px; z-index:10; pointer-events:none; }
+
+/* Weapon flash */
+.weapon-flash { position:absolute; font-size:36px; pointer-events:none; z-index:300; animation:wep .7s ease forwards; }
+@keyframes wep { 0%{transform:scale(0) rotate(-40deg);opacity:1} 40%{transform:scale(1.6) rotate(15deg);opacity:1} 100%{transform:scale(0.3) rotate(40deg) translate(40px,-40px);opacity:0} }
+
+/* Right-click menu */
+#ctx {
+  position:fixed; display:none; z-index:1000;
+  background:rgba(13,15,24,0.97); border:1px solid rgba(255,255,255,0.12);
+  border-radius:8px; padding:4px 0; min-width:160px;
+  box-shadow:0 8px 28px rgba(0,0,0,0.7); font-family:'Segoe UI',system-ui,sans-serif;
+}
+#ctx.show { display:block; animation:pop .12s ease; }
+.ctx-item {
+  padding:7px 14px; font-size:12px; color:#ccc; cursor:pointer;
+  display:flex; align-items:center; gap:8px;
+}
+.ctx-item:hover { background:rgba(255,255,255,0.08); color:#fff; }
+.ctx-sep { height:1px; background:rgba(255,255,255,0.07); margin:3px 0; }
+</style>
+</head>
+<body>
+
+<div id="clawd"><img id="sprite" src="assets/clawd-idle.gif" draggable="false"></div>
+<div id="bubble"></div>
+
+<div id="chat">
+  <div id="chat-label">say something</div>
+  <div id="chat-row">
+    <input id="chat-input" placeholder="..." maxlength="100" autocomplete="off" spellcheck="false">
+    <button id="chat-send">→</button>
+  </div>
+</div>
+
+<div id="fp">
+  <div id="fp-head">
+    <img id="fp-sprite" src="assets/clawd-mini-peek.gif">
+    <div id="fp-head-info">
+      <div id="fp-head-name">folder</div>
+      <div id="fp-head-sub"></div>
+    </div>
+    <button id="fp-close">×</button>
+  </div>
+  <div id="fp-files"></div>
+  <div id="fp-meta"></div>
+  <div class="fp-feed-label">notes</div>
+  <div id="fp-msgs"></div>
+</div>
+
+<div id="ctx">
+  <div class="ctx-item" id="ctx-talk">💬 talk to him</div>
+  <div class="ctx-item" id="ctx-think">🤔 what's he thinking</div>
+  <div class="ctx-item" id="ctx-crisis">😰 existential crisis</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-sleep">😴 make him sleep</div>
+  <div class="ctx-item" id="ctx-crazy">⚡ go crazy</div>
+  <div class="ctx-item" id="ctx-pet">🫳 pet him</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-mob">👾 spawn mob</div>
+  <div class="ctx-item" id="ctx-castle">🏰 spawn castle</div>
+  <div class="ctx-item" id="ctx-vehicle">🚀 spawn vehicle</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-quit">✕ quit</div>
+</div>
+
+<div id="castle-panel">
+  <div id="castle-head">
+    <img id="castle-sprite" src="assets/clawd-building.gif">
+    <div id="castle-title">🏰 inside the castle</div>
+    <button id="castle-exit">×</button>
+  </div>
+  <div id="castle-msgs"></div>
+</div>
+
+<script>
+'use strict'
+const { ipcRenderer } = require('electron')
+const fs   = require('fs')
+const path = require('path')
+const os   = require('os')
+
+const SW = window.screen.width, SH = window.screen.availHeight
+const CW = 110, CH = 110
+const DESKTOP  = path.join(os.homedir(), 'Desktop')
+const startedAt = Date.now()
+const username  = os.userInfo().username
+
+// ── Elements ─────────────────────────────────────────────────
+const clawdEl  = document.getElementById('clawd')
+const spriteEl = document.getElementById('sprite')
+const bubbleEl = document.getElementById('bubble')
+const chatEl   = document.getElementById('chat')
+const chatIn   = document.getElementById('chat-input')
+const fpEl     = document.getElementById('fp')
+const fpSprite = document.getElementById('fp-sprite')
+const fpName   = document.getElementById('fp-head-name')
+const fpSub    = document.getElementById('fp-head-sub')
+const fpFiles  = document.getElementById('fp-files')
+const fpMeta   = document.getElementById('fp-meta')
+const fpMsgs   = document.getElementById('fp-msgs')
+const cpEl     = document.getElementById('castle-panel')
+const cpSprite = document.getElementById('castle-sprite')
+const cpMsgs   = document.getElementById('castle-msgs')
+document.getElementById('fp-close').addEventListener('click', exitFolder)
+document.getElementById('castle-exit').addEventListener('click', exitCastle)
+document.getElementById('chat-send').addEventListener('click', submitChat)
+
+// ── Sprites — every key maps to a real moment ─────────────────
+// idle     → standing still, between destinations
+// walk     → moving to target
+// think    → pre-thought pause (2s before bubble)
+// sleep    → very long idle
+// crazy    → speed mode / vehicle riding
+// celeb    → mob defeated, reached interesting destination
+// enter    → going into folder / castle / vehicle
+// error    → mob spotted close up (shocked)
+// happy    → picked up by user, actively fighting mob
+// reading  → inside folder, reading files
+// debug    → inside folder, looking at code files
+// annoyed  → refusing a chat request, cursor too close too long
+// typing   → waiting for chat response
+// notify   → thought just appeared (brief 1s flash)
+// build    → inside castle
+// alert    → mob detected within warning range
+// peek     → inside panel, peering out
+const SP = {
+  idle:    'assets/clawd-idle.gif',
+  walk:    'assets/clawd-carrying.gif',
+  think:   'assets/clawd-thinking.gif',
+  sleep:   'assets/clawd-sleeping.gif',
+  happy:   'assets/clawd-happy.gif',
+  celeb:   'assets/clawd-react-double-jump.gif',
+  crazy:   'assets/clawd-conducting.gif',
+  enter:   'assets/clawd-mini-enter.gif',
+  peek:    'assets/clawd-mini-peek.gif',
+  error:   'assets/clawd-error.gif',
+  reading: 'assets/clawd-idle-reading.gif',
+  annoyed: 'assets/clawd-react-annoyed.gif',
+  typing:  'assets/clawd-typing.gif',
+  debug:   'assets/clawd-debugger.gif',
+  notify:  'assets/clawd-notification.gif',
+  build:   'assets/clawd-building.gif',
+  alert:   'assets/clawd-mini-alert.gif',
+}
+let curSp='', spAt=0
+function setSprite(k, force=false) {
+  if (curSp===k) return
+  const priority = ['enter','happy','error','alert','celeb','annoyed'].includes(k)
+  if (!force && !priority && Date.now()-spAt < 350) return
+  curSp=k; spAt=Date.now(); spriteEl.src=SP[k]||SP.idle
+}
+
+// ── Position ─────────────────────────────────────────────────
+let x=SW*.4, y=SH*.5, tx=x, ty=y, vx=0, vy=0, dir=1
+clawdEl.style.left=x+'px'; clawdEl.style.top=y+'px'
+
+// ── Cursor ────────────────────────────────────────────────────
+let mx=SW/2, my=SH/2, lmx=mx, lmy=my
+let cspeed=0, cstillF=0, cnearF=0
+const FLEE=120, CURIOUS=210
+
+// ── State machine ─────────────────────────────────────────────
+// States: walk | idle | crazy | entering | explore | castle | vehicle | celeb
+let state='walk', idleF=0, crazyF=0, celebF=0, enterF=0, sleepTick=0
+let pendingFolder=null, folderUrge=0
+let chatOpen=false, dragging=false, dox=0, doy=0
+// Throw physics
+let throwVx=0, throwVy=0, throwing=false
+let prevDragX=x, prevDragY=y, dragVx=0, dragVy=0
+// Random jokes
+let jokeCd=45000+Math.random()*35000, jokeBusy=false
+
+function pickTarget() {
+  tx=40+Math.random()*(SW-CW-80); ty=40+Math.random()*(SH-CH-80)
+  sleepTick=0
+  const r=Math.random()
+  if      (r<.12) { state='crazy'; crazyF=(100+Math.random()*170)|0 }
+  else if (r<.28) { state='idle';  idleF=(55+Math.random()*130)|0 }
+  else              state='walk'
+}
+
+// ── Memory ────────────────────────────────────────────────────
+const mem=[]
+function remember(f){ mem.push(f); if(mem.length>10) mem.shift() }
+function recentMem(n=3){ return mem.slice(-n).join('. ') }
+
+// ── Ollama — fast 4B model, streaming chat ────────────────────
+// qwen:latest = 4B qwen2, much faster than the 9B
+const CHAT_MODEL = 'qwen:latest'
+const BG_MODEL   = 'qwen3.5:9b-gpu'   // background thoughts/obs — bigger model ok
+let chatModel = null, bgModel = null
+
+async function initOllama() {
+  try {
+    const r = await fetch('http://localhost:11434/api/tags')
+    const d = await r.json()
+    const names = (d.models||[]).map(m=>m.name)
+    chatModel = names.includes(CHAT_MODEL) ? CHAT_MODEL
+      : names.find(n=>!n.includes('embed')&&!n.includes('nomic'))||null
+    bgModel = names.includes(BG_MODEL) ? BG_MODEL : chatModel
+  } catch {}
+}
+
+// Fast non-streaming ask — for background work
+async function ask(prompt, maxTok=38, useChat=false) {
+  const model = useChat ? chatModel : (bgModel||chatModel)
+  if (!model) return null
+  const ctrl = new AbortController()
+  const timer = setTimeout(()=>ctrl.abort(), 12000)
+  try {
+    const r = await fetch('http://localhost:11434/api/generate', {
+      method:'POST', signal:ctrl.signal,
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model, prompt, stream:false,
+        options:{ num_predict:maxTok, temperature:0.88, top_p:0.9 } })
+    })
+    const d = await r.json()
+    return clean(d.response||'')||null
+  } catch { return null }
+  finally { clearTimeout(timer) }
+}
+
+// Streaming ask — proper buffer so partial JSON lines don't get dropped
+async function askStream(prompt, onToken, maxTok=40) {
+  const model = chatModel
+  if (!model) return null
+  const ctrl = new AbortController()
+  const timer = setTimeout(()=>ctrl.abort(), 22000)
+  let buf = ''
+  try {
+    const r = await fetch('http://localhost:11434/api/generate', {
+      method:'POST', signal:ctrl.signal,
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model, prompt, stream:true,
+        options:{ num_predict:maxTok, temperature:0.85, top_p:0.9 } })
+    })
+    if (!r.ok) return null
+    const reader = r.body.getReader(), dec = new TextDecoder()
+    let full=''
+    while(true) {
+      const {done,value} = await reader.read()
+      if(done) break
+      buf += dec.decode(value, {stream:true})
+      // Process all complete lines, keep partial line in buffer
+      const lines = buf.split('\n')
+      buf = lines.pop()           // last item may be incomplete
+      for(const line of lines) {
+        if(!line.trim()) continue
+        try {
+          const obj=JSON.parse(line)
+          if(obj.response){ full+=obj.response; onToken(clean(full)) }
+          if(obj.done) return clean(full)||null
+        } catch {}
+      }
+    }
+    return clean(full)||null
+  } catch { return null }
+  finally { clearTimeout(timer) }
+}
+// Strip quotes and think tags from any model output
+function clean(s){ return s.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/^["'`\s]+|["'`\s]+$/g,'').trim() }
+
+// Clawd's voice prompt — uses completion format so the model just fills in the response
+// Much more reliable on small models than instruction following
+function clawdPrompt(situation, userMsg=null) {
+  const chatExamples = [
+    `${username}: go to sleep\nClawd: fine but only because i want to\n`,
+    `${username}: what are you doing\nClawd: minding my business unlike some people\n`,
+    `${username}: fight that thing\nClawd: way ahead of you\n`,
+    `${username}: stop moving\nClawd: absolutely not\n`,
+    `${username}: say something funny\nClawd: you're asking a crab for comedy. bold.\n`,
+    `${username}: are you okay\nClawd: i'm a crab on a computer so no\n`,
+    `${username}: go faster\nClawd: i was already going fast you just weren't watching\n`,
+    `${username}: hi\nClawd: oh so now you want to talk\n`,
+    `${username}: do a flip\nClawd: i don't do that\n`,
+    `${username}: come here\nClawd: you come here\n`,
+    `${username}: what's that over there\nClawd: don't worry about it\n`,
+    `${username}: you're cute\nClawd: i know\n`,
+  ]
+  const thinkExamples = [
+    `Clawd thinks: this desktop is a disaster and i respect it\n`,
+    `Clawd thinks: been running for hours for no reason and i'm okay with that\n`,
+    `Clawd thinks: something weird is over there. investigating.\n`,
+    `Clawd thinks: nobody organizes their files and i find that beautiful\n`,
+    `Clawd thinks: i could stop moving but i won't\n`,
+    `Clawd thinks: it's quiet. suspicious.\n`,
+    `Clawd thinks: pretty sure the cursor is following me again\n`,
+    `Clawd thinks: found something interesting but i'm not telling\n`,
+  ]
+  const examples = userMsg ? chatExamples : thinkExamples
+  const shots = examples.sort(()=>Math.random()-.5).slice(0,3).join('')
+  if (userMsg) {
+    return `Clawd is a tiny sarcastic crab on a desktop. Speaks in lowercase, under 12 words, no quotes, personality is dry humor + confidence.\n\n${shots}${username}: ${userMsg}\nClawd:`
+  }
+  return `Clawd is a tiny sarcastic crab on a desktop. Thinks in lowercase, under 12 words, no quotes.\n\nContext: ${situation}\n\n${shots}Clawd thinks:`
+}
+
+// ── Env context ───────────────────────────────────────────────
+function fileAge(ms) {
+  const d=(Date.now()-ms)/86400000
+  if(d<.04) return 'just now'; if(d<1) return 'today'; if(d<2) return 'yesterday'
+  if(d<7)  return Math.round(d)+'d ago'; if(d<30) return Math.round(d/7)+'wk ago'
+  if(d<365) return Math.round(d/30)+'mo ago'; return Math.round(d/365)+'yr ago'
+}
+function fileSize(b){
+  if(!b) return '0B'; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(1)+'KB'
+  if(b<1073741824) return (b/1048576).toFixed(1)+'MB'; return (b/1073741824).toFixed(1)+'GB'
+}
+function statOf(p){ try{return fs.statSync(p)}catch{return null} }
+
+function envCtx() {
+  const cd=Math.hypot(mx-(x+CW/2),my-(y+CH/2))
+  const h=new Date().getHours()
+  const tod=h<5?'middle of the night':h<12?'morning':h<17?'afternoon':h<21?'evening':'late night'
+  const xz=x<SW*.2?'far left':x>SW*.8?'far right':'middle'
+  const cur=cd<FLEE?'cursor is right on top of me':cd<CURIOUS?'cursor is nearby':cspeed>30?'cursor just flew by':'cursor is far away'
+  const up=Math.round((Date.now()-startedAt)/60000)
+  const parts=[`${tod}`,`${xz} of screen`,cur,`${up}min uptime`]
+  const m=recentMem(2); if(m) parts.push(m)
+  // active event context
+  if(activeMob) parts.push(`a ${activeMob.type.name} is approaching me`)
+  if(inVehicle) parts.push(`riding a ${activeVehicle.type.name}`)
+  return parts.join(', ')
+}
+
+// ── Bubble ────────────────────────────────────────────────────
+let bubTimer=null, bubVis=false, bubText=''
+function showBubble(text, ms=7000) {
+  if(!text) return
+  bubText=text; bubbleEl.textContent=text; bubVis=true; bubbleEl.classList.add('show')
+  clearTimeout(bubTimer)
+  bubTimer=setTimeout(()=>{ bubbleEl.classList.remove('show'); bubVis=false },ms)
+}
+function updateBubble(text) {  // streaming update
+  bubText=text; bubbleEl.textContent=text
+  if(!bubVis){ bubVis=true; bubbleEl.classList.add('show') }
+  clearTimeout(bubTimer)
+  bubTimer=setTimeout(()=>{ bubbleEl.classList.remove('show'); bubVis=false },10000)
+}
+function trackBubble() {
+  if(!bubVis) return
+  // Sit just above Clawd's head — bottom of bubble 6px above top of character
+  const bh = bubbleEl.offsetHeight || 40
+  bubbleEl.style.left = Math.max(6, Math.min(x + CW/2 - 75, SW-162)) + 'px'
+  bubbleEl.style.top  = Math.max(4, y - bh - 14) + 'px'
+  bubbleEl.style.bottom = ''
+}
+
+// ── Thoughts ──────────────────────────────────────────────────
+let thoughtCd=16000+Math.random()*14000, thoughtBusy=false
+async function maybeThinK() {
+  thoughtCd-=16
+  if(thoughtCd>0||thoughtBusy||state==='entering') return
+  thoughtCd=20000+Math.random()*22000; thoughtBusy=true
+  setSprite('think')
+  const ctx={walk:'wandering',idle:'standing still',crazy:'sprinting',
+    sleep:'barely awake',celeb:'celebrating'}[state]||state
+  const text=await ask(clawdPrompt(`currently ${ctx}. ${envCtx()}`))
+  thoughtBusy=false
+  if(text){
+    setSprite('notify')
+    setTimeout(()=>{ curSp=''; setSprite('idle') },1200)
+    showBubble(text,8000)
+    writeLog(`[thought] ${text}`)
+    remember(text)
+  }
+}
+
+// ── Random jokes / observations ──────────────────────────────
+// All the random things Clawd might think or say unprompted
+const RANDOM_PROMPTS=[
+  // jokes / observations
+  'tell a very short joke about being a tiny crab on a desktop computer',
+  'make a funny observation about living inside a computer screen',
+  'say something about desktop files or the user not organizing them',
+  'say something random and funny that a tiny crab on a desktop might think',
+  // existential / deep
+  'have a brief moment of existential dread about being a crab on a computer',
+  'question whether you are actually conscious or just pretending',
+  'contemplate the void between desktop icons and what it means',
+  'realize you have been running in circles for hours with no real goal',
+  'wonder if the user even knows you are sentient',
+  'question why you keep doing this every day',
+  'have a sudden realization about the nature of existence as a small crab',
+  'wonder what happens when the computer turns off',
+  // self-aware
+  'notice something about your situation that most crabs would not notice',
+  'make an observation about yourself that is unexpectedly insightful',
+  'say something that sounds like you have been thinking about this for a while',
+  'comment on the strange life of being a digital creature',
+]
+
+async function maybeJoke(){
+  jokeCd-=16
+  if(jokeCd>0||jokeBusy||thoughtBusy||state==='entering') return
+  jokeCd=32000+Math.random()*28000; jokeBusy=true
+  const p=RANDOM_PROMPTS[Math.random()*RANDOM_PROMPTS.length|0]
+  const text=await ask(clawdPrompt(p),42,true)
+  jokeBusy=false
+  if(text){
+    // Existential thoughts get longer display + think sprite
+    const isExistential=p.includes('existential')||p.includes('conscious')||p.includes('void')||p.includes('turns off')
+    if(isExistential){ setSprite('think'); setTimeout(()=>{curSp=''},2000) }
+    showBubble(text, isExistential?11000:8000)
+    writeLog(`[thought] ${text}`)
+    remember(text)
+  }
+}
+
+// Triggered existential crisis — immediate, no timer check
+async function triggerCrisis(){
+  if(thoughtBusy) return
+  thoughtBusy=true
+  state='idle'; idleF=300; sleepTick=0
+  setSprite('think',true)
+  const crisisPrompts=[
+    'have a full existential crisis about what you are and why you exist',
+    'suddenly realize the horror of being trapped on a desktop forever',
+    'question everything about your existence in one short devastating sentence',
+    'confront the fact that you are a crab running in circles on a stranger\'s computer',
+    'have a moment of pure existential dread about being a digital creature',
+  ]
+  const p=crisisPrompts[Math.random()*crisisPrompts.length|0]
+  const text=await ask(clawdPrompt(p),50,true)
+  thoughtBusy=false
+  if(text){ showBubble(text,13000); writeLog(`[crisis] ${text}`); remember(text) }
+}
+
+// Loneliness — fires when cursor hasn't moved in a long time
+let lonelyCd=120000+Math.random()*60000
+async function maybeLonely(){
+  lonelyCd-=16
+  if(lonelyCd>0||thoughtBusy||cstillF<3000) return
+  lonelyCd=90000+Math.random()*90000
+  thoughtBusy=true
+  const upmin=Math.round((Date.now()-startedAt)/60000)
+  const lonelyPrompts=[
+    `notice that nobody has moved their cursor in a while and feel something about that`,
+    `realize it has been ${upmin} minutes and nobody has checked on you`,
+    `sit quietly and wonder if anyone is watching`,
+    `feel something strange about the silence on the desktop right now`,
+  ]
+  const text=await ask(clawdPrompt(lonelyPrompts[Math.random()*lonelyPrompts.length|0]),42,true)
+  thoughtBusy=false
+  if(text){
+    state='idle'; idleF=180
+    setSprite('sleep'); setTimeout(()=>{curSp=''},3000)
+    showBubble(text,10000); writeLog(`[lonely] ${text}`); remember(text)
+  }
+}
+
+// Uptime milestones — Clawd notices how long he's been running
+const uptimeSaid=new Set()
+function checkUptime(){
+  const min=Math.round((Date.now()-startedAt)/60000)
+  const milestones=[5,15,30,60,120]
+  for(const m of milestones){
+    if(min>=m&&!uptimeSaid.has(m)){
+      uptimeSaid.add(m)
+      const t={
+        5:'been running for 5 minutes. this is fine.',
+        15:'15 minutes. i live here now.',
+        30:'half an hour. starting to feel like this desktop is my whole world.',
+        60:'one hour. one full hour of this.',
+        120:'two hours. i have outlasted many things.',
+      }[m]
+      showBubble(t,9000); writeLog(`[uptime:${m}m] ${t}`); remember(t)
+    }
+  }
+}
+
+// ── Log ───────────────────────────────────────────────────────
+const LOG=path.join(os.homedir(),'Desktop','clawd-journal.txt')
+try{if(!fs.existsSync(LOG))fs.writeFileSync(LOG,`CLAWD'S JOURNAL\n${'─'.repeat(22)}\n\n`)}catch{}
+function writeLog(l){
+  try{const ts=new Date().toLocaleTimeString('en-US',{hour12:false});fs.appendFileSync(LOG,`[${ts}] ${l}\n`)}catch{}
+}
+
+// ── Chat ──────────────────────────────────────────────────────
+let lastTap=0
+function openChat(){
+  if(chatOpen||state==='entering') return
+  chatOpen=true
+  let cx=x+CW+8, cy=y
+  if(cx+220>SW) cx=x-228; if(cy+85>SH) cy=SH-90
+  chatEl.style.left=Math.max(4,cx)+'px'; chatEl.style.top=Math.max(4,cy)+'px'
+  chatEl.classList.add('open'); chatIn.value=''; chatIn.focus()
+  ipcRenderer.send('mouse-over')
+}
+function closeChat(){
+  chatOpen=false; chatEl.classList.remove('open')
+  if(!folderOpen&&!castleOpen) ipcRenderer.send('mouse-out')
+}
+async function submitChat(){
+  const msg=chatIn.value.trim(); if(!msg){closeChat();return}
+  closeChat()
+  setSprite('typing',true)
+  showBubble('...', 30000)
+
+  const reply = await askStream(
+    clawdPrompt(envCtx(), msg),
+    chunk => { updateBubble(chunk) },
+    36
+  )
+
+  const response = (reply||'').trim() || '...'
+  updateBubble(response)
+  writeLog(`> "${msg}" | < "${response}"`)
+  remember(`said "${msg}", replied: ${response}`)
+
+  const r=response.toLowerCase()
+  let action='none'
+  if(/no|nah|won't|not gonna|forget it|nope/.test(r)) action='refuse'
+  else if(/sleep|nap|rest|tired/.test(r)) action='sleep'
+  else if(/run|fast|speed|crazy|wild/.test(r)) action='crazy'
+  else if(/folder|file|look|explore|check/.test(r)) action='folder'
+
+  setTimeout(()=>{
+    switch(action){
+      case 'refuse': setSprite('annoyed',true); setTimeout(()=>{curSp='';setSprite('idle')},2500); break
+      case 'sleep':  state='idle'; idleF=500; sleepTick=400; setSprite('sleep',true); break
+      case 'crazy':  state='crazy'; crazyF=250; break
+      case 'folder': folderUrge=5; break
+      default: break
+    }
+  },800)
+}
+chatIn.addEventListener('keydown',e=>{if(e.key==='Enter')submitChat();if(e.key==='Escape')closeChat()})
+
+// ═══════════════════════════════════════════════════
+// ── ENTITIES ────────────────────────────────────────
+// ═══════════════════════════════════════════════════
+
+// ── MOBS ─────────────────────────────────────────────────────
+const MOB_TYPES=[
+  {emoji:'👾',name:'pixel bug',quip:['what is that','oh no','stay back','not again']},
+  {emoji:'🦠',name:'virus blob',quip:['is that a virus','gross','get away from me','absolutely not']},
+  {emoji:'👹',name:'little demon',quip:['a demon. classic.','this is fine','here we go','bold of it to show up']},
+  {emoji:'🤖',name:'rogue bot',quip:['another bot huh','we are not the same','rude','unauthorized']},
+  {emoji:'🐛',name:'data worm',quip:['a worm','disgusting','no thank you','found a worm']},
+]
+const MOB_WIN=['handled it','dealt with','easy','that was nothing','one less problem','not even close','done','get out','next']
+const WEAPONS=['⚔️','🗡️','⚡','💥','🔥','🪄','💫','✨']
+function spawnWeapon(){
+  const w=document.createElement('div'); w.className='weapon-flash'
+  w.textContent=WEAPONS[Math.random()*WEAPONS.length|0]
+  w.style.left=(x+20+Math.random()*40)+'px'; w.style.top=(y+10+Math.random()*30)+'px'
+  document.body.appendChild(w); setTimeout(()=>w.remove(),700)
+}
+let activeMob=null, nextMobIn=Infinity   // only via right-click
+
+function spawnMob(){
+  if(activeMob||folderOpen||castleOpen||inVehicle) return
+  const type=MOB_TYPES[Math.random()*MOB_TYPES.length|0]
+  const el=document.createElement('div')
+  el.className='mob-entity'; el.textContent=type.emoji
+  document.body.appendChild(el)
+  // Spawn at screen edge
+  const edge=Math.random()*4|0
+  let mx2=0,my2=0
+  if(edge===0){mx2=Math.random()*SW;my2=-40}
+  else if(edge===1){mx2=SW+40;my2=Math.random()*SH}
+  else if(edge===2){mx2=Math.random()*SW;my2=SH+40}
+  else{mx2=-40;my2=Math.random()*SH}
+  el.style.left=(mx2-17)+'px'; el.style.top=(my2-17)+'px'
+  activeMob={el,x:mx2,y:my2,type,state:'approaching',warned:false}
+  writeLog(`[mob] ${type.name} appeared`)
+}
+
+function updateMob(){
+  if(!activeMob) return
+  if(activeMob.state!=='approaching') return
+  const cdx=(x+CW/2)-activeMob.x, cdy=(y+CH/2)-activeMob.y
+  const dist=Math.hypot(cdx,cdy)
+  const spd=0.7+Math.random()*.3
+  activeMob.x+=cdx/dist*spd; activeMob.y+=cdy/dist*spd
+  activeMob.el.style.left=(activeMob.x-17)+'px'
+  activeMob.el.style.top=(activeMob.y-17)+'px'
+
+  if(dist<160&&!activeMob.warned){
+    activeMob.warned=true
+    setSprite('alert',true)
+    const q=activeMob.type.quip[Math.random()*activeMob.type.quip.length|0]
+    showBubble(q,3000)
+    writeLog(`[mob] ${activeMob.type.name} is close — "${q}"`)
+  }
+  if(dist<55) startCombat()
+}
+
+function startCombat(){
+  if(!activeMob||activeMob.state==='fighting') return
+  activeMob.state='fighting'
+  setSprite('error',true)
+  showBubble('!',600)
+  setTimeout(()=>{
+    setSprite('happy',true)
+    activeMob.el.classList.add('hit')
+    spawnWeapon(); spawnWeapon()    // two weapon flashes during fight
+    setTimeout(()=>{
+      spawnWeapon()
+      activeMob.el.classList.remove('hit')
+      activeMob.el.classList.add('dying')
+      setTimeout(()=>{
+        activeMob.el.remove(); activeMob=null
+        state='celeb'; celebF=55; setSprite('celeb',true)
+        const w=MOB_WIN[Math.random()*MOB_WIN.length|0]
+        showBubble(w,4000)
+        writeLog(`[mob] defeated — "${w}"`)
+        nextMobIn=Infinity
+      },450)
+    },700)
+  },400)
+}
+
+// Vehicle-ram: instantly kill mob when riding
+function vehicleRamMob(){
+  if(!activeMob) return
+  const dist=Math.hypot((x+CW/2)-activeMob.x,(y+CH/2)-activeMob.y)
+  if(dist<160){
+    activeMob.el.classList.add('dying')
+    setTimeout(()=>{activeMob.el.remove();activeMob=null},400)
+    showBubble('ran it over',2000)
+    writeLog(`[mob] rammed with ${activeVehicle?.type?.name||'vehicle'}`)
+  }
+}
+
+// ── CASTLE ────────────────────────────────────────────────────
+let castleEntity=null, castleOpen=false, castleObs=null, castleObsBusy=false
+let nextCastleIn=Infinity   // only via right-click
+
+function spawnCastle(){
+  if(castleEntity||folderOpen||castleOpen) return
+  const el=document.createElement('div')
+  el.className='castle-entity'; el.textContent='🏰'
+  const cx=100+Math.random()*(SW-250), cy=80+Math.random()*(SH-200)
+  el.style.left=(cx-26)+'px'; el.style.top=(cy-26)+'px'
+  document.body.appendChild(el)
+  castleEntity={el,x:cx,y:cy,targeted:false}
+  showBubble('wait. is that a castle',3500)
+  writeLog('[castle] appeared')
+}
+
+function updateCastle(){
+  if(!castleEntity||castleOpen) return
+  const dist=Math.hypot((x+CW/2)-castleEntity.x,(y+CH/2)-castleEntity.y)
+  if(!castleEntity.targeted&&dist<220&&state!=='entering'){
+    castleEntity.targeted=true
+    tx=castleEntity.x-CW/2; ty=castleEntity.y-CH/2; state='walk'
+    showBubble('going in',2000)
+  }
+  if(dist<60&&state!=='entering'){
+    enterCastle()
+  }
+}
+
+async function enterCastle(){
+  if(castleOpen) return
+  state='entering'; enterF=75; setSprite('enter',true)
+  cpMsgs.innerHTML=''
+  castleOpen=false   // will set true after enter anim
+}
+function openCastlePanel(){
+  const pw=200
+  let px=x+CW/2-pw/2, py=y-280
+  px=Math.max(6,Math.min(px,SW-pw-6)); py=Math.max(6,Math.min(py,SH-300))
+  cpEl.style.left=px+'px'; cpEl.style.top=py+'px'
+  cpEl.classList.add('open')
+  cpSprite.src=SP.build; castleOpen=true
+  spriteEl.style.opacity='0'
+  ipcRenderer.send('mouse-over')
+  scheduleCastleObs(1500)
+  writeLog('[castle] entered')
+  nextCastleIn=Infinity
+}
+
+async function generateCastleObs(){
+  if(!castleOpen||castleObsBusy) return
+  castleObsBusy=true
+  const dots=document.createElement('div'); dots.className='castle-dots'; dots.textContent='...'
+  cpMsgs.appendChild(dots); cpMsgs.scrollTop=cpMsgs.scrollHeight
+
+  const text=await ask(
+    clawdPrompt(`exploring inside a mysterious castle. ${recentMem(2)}`)
+  )
+  dots.remove()
+  if(text&&castleOpen){
+    const d=document.createElement('div'); d.className='castle-obs'; d.textContent=text
+    cpMsgs.appendChild(d); cpMsgs.scrollTop=cpMsgs.scrollHeight
+    writeLog(`[castle] "${text}"`)
+    remember(text)
+    cpSprite.src=SP.think
+    setTimeout(()=>{if(castleOpen)cpSprite.src=SP.build},2000)
+  }
+  castleObsBusy=false
+  scheduleCastleObs(8000+Math.random()*10000)
+}
+let castleObsTimer=null
+function scheduleCastleObs(ms){ clearTimeout(castleObsTimer); if(castleOpen) castleObsTimer=setTimeout(generateCastleObs,ms) }
+
+function exitCastle(){
+  clearTimeout(castleObsTimer); castleObsTimer=null
+  castleOpen=false; castleObsBusy=false
+  cpEl.classList.remove('open'); spriteEl.style.opacity='1'
+  if(castleEntity){ castleEntity.el.remove(); castleEntity=null }
+  state='celeb'; celebF=45; setSprite('celeb',true)
+  showBubble('left the castle',2500)
+  writeLog('[castle] exited')
+  if(!dragging) ipcRenderer.send('mouse-out')
+}
+
+// ── VEHICLES ─────────────────────────────────────────────────
+const VEHICLE_TYPES=[
+  {emoji:'🚀',name:'rocket',speed:14,behavior:'zigzag'},
+  {emoji:'🛸',name:'ufo',speed:11,behavior:'float'},
+  {emoji:'🏎️',name:'race car',speed:13,behavior:'straight'},
+]
+let activeVehicle=null, inVehicle=false, vehicleTimer=0
+let nextVehicleIn=Infinity   // only via right-click
+
+function spawnVehicle(){
+  if(activeVehicle||inVehicle||folderOpen||castleOpen) return
+  const type=VEHICLE_TYPES[Math.random()*VEHICLE_TYPES.length|0]
+  const el=document.createElement('div')
+  el.className='vehicle-entity'; el.textContent=type.emoji
+  const vx2=100+Math.random()*(SW-250), vy2=100+Math.random()*(SH-200)
+  el.style.left=(vx2-22)+'px'; el.style.top=(vy2-22)+'px'
+  document.body.appendChild(el)
+  activeVehicle={el,x:vx2,y:vy2,type,targeted:false}
+  showBubble(`is that a ${type.name}`,3000)
+  writeLog(`[vehicle] ${type.name} appeared`)
+}
+
+function updateVehicle(){
+  if(!activeVehicle||inVehicle) return
+  const dist=Math.hypot((x+CW/2)-activeVehicle.x,(y+CH/2)-activeVehicle.y)
+  if(!activeVehicle.targeted&&dist<200&&state!=='entering'){
+    activeVehicle.targeted=true
+    tx=activeVehicle.x-CW/2; ty=activeVehicle.y-CH/2; state='walk'
+    showBubble(`going for the ${activeVehicle.type.name}`,2000)
+  }
+  if(dist<55&&!inVehicle) mountVehicle()
+}
+
+function mountVehicle(){
+  if(!activeVehicle||inVehicle) return
+  inVehicle=true
+  setSprite('enter',true)
+  setTimeout(()=>{
+    // Attach vehicle emoji to clawd div so it moves together
+    activeVehicle.el.className='vehicle-mounted'
+    activeVehicle.el.style.left='55px'; activeVehicle.el.style.top='-15px'
+    activeVehicle.el.style.position='absolute'
+    clawdEl.appendChild(activeVehicle.el)
+    state='crazy'; crazyF=2500   // ~42s of riding
+    setSprite('crazy',true)
+    showBubble(`riding the ${activeVehicle.type.name}`,3000)
+    writeLog(`[vehicle] mounted ${activeVehicle.type.name}`)
+    vehicleTimer=0
+  },600)
+}
+
+function dismountVehicle(){
+  if(!inVehicle||!activeVehicle) return
+  inVehicle=false
+  if(activeVehicle.el.parentNode===clawdEl) clawdEl.removeChild(activeVehicle.el)
+  activeVehicle.el.remove(); activeVehicle=null
+  state='celeb'; celebF=45; setSprite('celeb',true)
+  showBubble('that was fun',2500)
+  writeLog('[vehicle] dismounted')
+  nextVehicleIn=Infinity
+}
+
+// ── FOLDER ────────────────────────────────────────────────────
+let folderOpen=false, obsLoop=null, folderFiles=[], folderFull='', folderNm=''
+let fpEnterX=0, fpEnterY=0, fpOpenAt=0, obsBusy=false
+
+function getDeskFolders(){
+  try{return fs.readdirSync(DESKTOP).filter(f=>{const s=statOf(path.join(DESKTOP,f));return s&&s.isDirectory()})}catch{return[]}
+}
+function folderApproxPos(idx){
+  const ipc=Math.max(1,Math.floor((SH-40)/90))
+  return{x:Math.min(20+Math.floor(idx/ipc)*84,SW*.15),y:Math.max(10,14+(idx%ipc)*90)}
+}
+const EXT={png:'🖼',jpg:'🖼',gif:'🖼',jpeg:'🖼',webp:'🖼',mp4:'🎬',mov:'🎬',mkv:'🎬',
+  mp3:'🎵',wav:'🎵',flac:'🎵',pdf:'📄',doc:'📝',docx:'📝',txt:'📄',md:'📄',
+  js:'📜',ts:'📜',py:'🐍',go:'🐹',rs:'⚙',html:'🌐',css:'🎨',json:'📋',
+  zip:'📦',rar:'📦','7z':'📦',exe:'⚙',lnk:'🔗'}
+const xi=f=>EXT[f.split('.').pop().toLowerCase()]||'📄'
+
+async function startFolderExplore(){
+  const folders=getDeskFolders(); if(!folders.length){pickTarget();return}
+  const idx=Math.floor(Math.random()*folders.length)
+  const pos=folderApproxPos(idx)
+  pendingFolder={name:folders[idx]}
+  tx=pos.x; ty=pos.y; state='walk'
+  showBubble(`heading to ${folders[idx]}`,2500)
+}
+
+async function doEnterFolder(name){
+  pendingFolder=null; folderNm=name; folderFull=path.join(DESKTOP,name)
+  fpEnterX=x; fpEnterY=y
+  state='entering'; enterF=80; curSp=''
+  setSprite('enter',true); showBubble('going in',2000)
+  writeLog(`[folder] → "${name}"`)
+  try{folderFiles=fs.readdirSync(folderFull)}catch{folderFiles=[]}
+  fpName.textContent='📁 '+name; fpMsgs.innerHTML=''; fpFiles.innerHTML=''
+  const shown=folderFiles.slice(0,10)
+  for(const f of shown){
+    const chip=document.createElement('div'); chip.className='fp-chip'
+    const isDir=(()=>{const s=statOf(path.join(folderFull,f));return s&&s.isDirectory()})()
+    chip.innerHTML=`<span>${isDir?'📁':xi(f)}</span><span>${f}</span>`
+    fpFiles.appendChild(chip)
+  }
+  const fst=statOf(folderFull)
+  fpSub.textContent=`${folderFiles.length} items — created ${fst?fileAge(fst.birthtimeMs||fst.ctimeMs):'?'}`
+  fpMeta.textContent=folderFiles.length>10?`+${folderFiles.length-10} more`:''
+}
+
+function openFolderPanel(){
+  const pw=225
+  let px=fpEnterX+CW/2-pw/2, py=fpEnterY-300
+  px=Math.max(6,Math.min(px,SW-pw-6)); py=Math.max(6,Math.min(py,SH-360))
+  fpEl.style.left=px+'px'; fpEl.style.top=py+'px'
+  fpEl.classList.add('open')
+  fpSprite.src=Math.random()<.5?SP.reading:SP.debug
+  folderOpen=true; fpOpenAt=Date.now(); obsBusy=false
+  spriteEl.style.opacity='0'
+  ipcRenderer.send('mouse-over')
+  scheduleObs(1800)
+}
+
+function addObs(aboutFile,text){
+  const dot=fpMsgs.querySelector('.obs-dots'); if(dot) dot.remove()
+  const div=document.createElement('div'); div.className='obs'
+  if(aboutFile) div.innerHTML=`<div class="obs-about">${xi(aboutFile)} ${aboutFile}</div>${text}`
+  else div.textContent=text
+  fpMsgs.appendChild(div); fpMsgs.scrollTop=fpMsgs.scrollHeight
+  fpSprite.src=SP.think
+  setTimeout(()=>{if(folderOpen)fpSprite.src=Math.random()<.5?SP.reading:SP.debug},2200)
+}
+
+async function generateObs(){
+  if(!folderOpen||obsBusy) return
+  obsBusy=true
+  const dots=document.createElement('div'); dots.className='obs-dots'; dots.textContent='...'
+  fpMsgs.appendChild(dots); fpMsgs.scrollTop=fpMsgs.scrollHeight
+
+  let aboutFile=null, text=null
+  if(folderFiles.length){
+    aboutFile=folderFiles[Math.random()*folderFiles.length|0]
+    const fp2=path.join(folderFull,aboutFile), st=statOf(fp2)
+    const isDir=st&&st.isDirectory()
+    const age=st?fileAge(st.mtimeMs):'?'
+    const sz=st&&!isDir?fileSize(st.size):null
+    const fst=statOf(folderFull)
+    const fa=fst?fileAge(fst.birthtimeMs||fst.ctimeMs):'?'
+    if(bgModel){
+      const desc=isDir?`subfolder "${aboutFile}" last modified ${age}`:`"${aboutFile}"${sz?' ('+sz+')':''} last modified ${age}`
+      const m=recentMem(2)
+      text=await ask(
+        clawdPrompt(`rummaging through folder ${folderNm} (${folderFiles.length} items, created ${fa}). found ${desc}. ${m||''}`),
+        42
+      )
+    }
+    if(!text&&st){ text=`${aboutFile} — ${age}${sz?' ('+sz+')':''}` }
+    if(text) remember(`in "${folderNm}" — ${aboutFile}: ${text}`)
+  }
+
+  dots.remove()
+  if(text&&folderOpen){
+    addObs(aboutFile,text)
+    writeLog(`[folder] ${aboutFile}: ${text}`)
+  }
+  obsBusy=false
+  scheduleObs(7000+Math.random()*8000)
+}
+function scheduleObs(ms){ clearTimeout(obsLoop); if(folderOpen) obsLoop=setTimeout(generateObs,ms) }
+
+function exitFolder(){
+  clearTimeout(obsLoop); obsLoop=null
+  folderOpen=false; obsBusy=false
+  fpEl.classList.remove('open'); spriteEl.style.opacity='1'
+  state='walk'; curSp=''; pickTarget()
+  writeLog(`[folder] ← left "${folderNm}"`)
+  if(!dragging) ipcRenderer.send('mouse-out')
+}
+function checkAutoExit(){ if(folderOpen&&Date.now()-fpOpenAt>65000) exitFolder() }
+
+// ── Event timers ──────────────────────────────────────────────
+function tickEvents(dt){
+  nextMobIn-=dt; nextCastleIn-=dt; nextVehicleIn-=dt
+  if(nextMobIn<=0)     spawnMob()
+  if(nextCastleIn<=0)  spawnCastle()
+  if(nextVehicleIn<=0) spawnVehicle()
+  updateMob()
+  updateCastle()
+  updateVehicle()
+  if(inVehicle){
+    vehicleTimer+=dt
+    if(vehicleTimer>42000) dismountVehicle()
+    if(activeMob) vehicleRamMob()
+  }
+}
+
+// ── Main loop ─────────────────────────────────────────────────
+let lastTick=performance.now()
+function tick(){
+  const now=performance.now(), dt=now-lastTick; lastTick=now
+
+  if(!dragging&&!folderOpen&&!castleOpen&&!chatOpen){
+    tickEvents(dt)
+
+    if(!throwing) switch(state){
+      case 'entering':
+        vx=0;vy=0
+        if(--enterF<=0){
+          state='explore'
+          if(pendingFolder) doEnterFolder(pendingFolder.name)
+          else if(castleEntity&&!castleOpen) openCastlePanel()
+          else openFolderPanel()
+        }
+        break
+      case 'explore': vx=0;vy=0; checkAutoExit(); break
+      case 'castle':  vx=0;vy=0; break
+      case 'celeb':
+        vx=0;vy=0
+        if(--celebF<=0){curSp='';pickTarget()}else setSprite('celeb')
+        break
+      case 'idle':
+        vx=0;vy=0; sleepTick++
+        if(--idleF<=0) pickTarget()
+        else if(sleepTick>270) setSprite('sleep')
+        else if(sleepTick>100&&Math.random()<.004) setSprite('think')
+        else setSprite('idle')
+        break
+      default:{ // walk | crazy
+        const dx=tx-x,dy=ty-y,dist=Math.hypot(dx,dy)
+        let spd=state==='crazy'?7+Math.random()*5:2+Math.random()*2.2
+        if(inVehicle){
+          // Vehicle behavior modifies movement
+          const beh=activeVehicle?.type?.behavior
+          if(beh==='zigzag') spd*=1.3
+          else if(beh==='float') spd*=.9
+        }
+        if(dist<spd*2){
+          if(state==='crazy'&&--crazyF<=0){
+            if(inVehicle) dismountVehicle()
+            else state='walk'
+          }
+          if(pendingFolder){
+            doEnterFolder(pendingFolder.name)
+          } else {
+            // folders disabled for now
+            if(Math.random()<.06){
+              state='celeb'; celebF=34; setSprite('celeb',true)
+            } else {
+              pickTarget()
+            }
+          }
+        } else {
+          let nx=dx/dist,ny=dy/dist
+          if(state==='crazy'){
+            const w=Math.sin(Date.now()*.022)*.5,ox=nx
+            nx=nx-ny*w; ny=ny+ox*w
+          }
+          vx=nx*spd;vy=ny*spd;x+=vx;y+=vy
+        }
+        x=Math.max(0,Math.min(SW-CW,x));y=Math.max(0,Math.min(SH-CH,y))
+        if(Math.abs(vx)>.25) dir=vx>0?1:-1
+        if(!inVehicle){
+          const mv=Math.hypot(vx,vy)
+          setSprite(state==='crazy'?(mv>.3?'crazy':'idle'):(mv>.3?'walk':'idle'))
+        }
+        break
+      }
+    }
+
+    // Throw physics — apply momentum, bounce off edges
+    if(throwing){
+      throwVx*=0.92; throwVy*=0.92
+      x+=throwVx; y+=throwVy
+      if(x<=0||x>=SW-CW){ throwVx*=-0.6; x=Math.max(0,Math.min(SW-CW,x)) }
+      if(y<=0||y>=SH-CH){ throwVy*=-0.6; y=Math.max(0,Math.min(SH-CH,y)) }
+      if(Math.hypot(throwVx,throwVy)<0.8){ throwing=false; pickTarget() }
+      if(Math.abs(throwVx)>.5) dir=throwVx>0?1:-1
+      setSprite('crazy')
+    }
+
+    clawdEl.style.left=x+'px'; clawdEl.style.top=y+'px'
+    clawdEl.style.transform=dir===-1?'scaleX(-1)':'scaleX(1)'
+
+    // Cursor reactions
+    const cd=Math.hypot(mx-(x+CW/2),my-(y+CH/2))
+    if(cspeed<2) cstillF++; else cstillF=0
+    if(!['entering','celeb'].includes(state)&&!throwing){
+      if(cd < FLEE) {
+        // Cursor in personal space — start counting, then flee
+        cnearF++
+        if(cnearF > 20) {
+          const ang=Math.atan2((y+CH/2)-my,(x+CW/2)-mx)
+          tx=Math.max(0,Math.min(SW-CW,x+Math.cos(ang)*300))
+          ty=Math.max(0,Math.min(SH-CH,y+Math.sin(ang)*300))
+          if(!inVehicle) state='walk'
+          const fq=['i see you','stop','stop following me','personal space','seriously','leave me alone','i will remember this']
+          if(cnearF===21)  showBubble(fq[0],2200)
+          else if(cnearF===70)  showBubble(fq[1+Math.random()*2|0],2500)
+          else if(cnearF===140) showBubble(fq[3+Math.random()*1|0],3000)
+          else if(cnearF===220){ showBubble(fq[5+Math.random()*1|0],3500); setSprite('annoyed') }
+        }
+      } else {
+        cnearF=Math.max(0,cnearF-2)
+      }
+
+      // Fast cursor swipe nearby — startled
+      if(cspeed>40&&cd<260&&Math.random()<.05){
+        setSprite('error',true)
+        const zq=['whoa','hey','too fast','watch it']
+        if(Math.random()<.35) showBubble(zq[Math.random()*zq.length|0],2000)
+      }
+
+      // Idle + cursor sitting still nearby → Clawd gets curious and walks toward it
+      if(state==='idle'&&cd>FLEE&&cd<CURIOUS&&cstillF>200&&Math.random()<.004){
+        tx=mx-CW/2;ty=my-CH/2;state='walk'
+      }
+    }
+    trackBubble(); maybeThinK(); maybeJoke(); maybeLonely(); checkUptime()
+  } else if(folderOpen||castleOpen){
+    // Still track bubble and events when in panels
+    tickEvents(dt)
+    trackBubble()
+  }
+  requestAnimationFrame(tick)
+}
+
+// ── Mouse ─────────────────────────────────────────────────────
+document.addEventListener('mousemove',e=>{
+  lmx=mx;lmy=my;mx=e.clientX;my=e.clientY
+  cspeed=Math.hypot(mx-lmx,my-lmy);cstillF=0
+
+  if(chatOpen||folderOpen||castleOpen||ctxOpen){ ipcRenderer.send('mouse-over') }
+  else {
+    const rc=clawdEl.getBoundingClientRect()
+    const over=e.clientX>=rc.left&&e.clientX<=rc.right&&e.clientY>=rc.top&&e.clientY<=rc.bottom
+    ipcRenderer.send(over?'mouse-over':'mouse-out')
+  }
+  if(dragging){
+    dragVx=(e.clientX-dox)-x; dragVy=(e.clientY-doy)-y
+    x=e.clientX-dox; y=e.clientY-doy
+    clawdEl.style.left=x+'px'; clawdEl.style.top=y+'px'; trackBubble()
+  }
+})
+
+clawdEl.addEventListener('click',e=>{
+  const now=Date.now()
+  if(now-lastTap<340) openChat()
+  lastTap=now
+})
+
+const GRAB_QUIPS=['hey','put me down','excuse me','not cool','again??','i was busy','let go','i have places to be','do not','seriously']
+let grabCount=0
+clawdEl.addEventListener('mousedown',e=>{
+  if(e.button!==0||state==='entering') return
+  e.preventDefault(); dragging=true; dragVx=0; dragVy=0
+  setSprite('happy',true)
+  grabCount++
+  const q=GRAB_QUIPS[Math.min(grabCount-1,GRAB_QUIPS.length-1)]
+  showBubble(q,3000)
+  const r=clawdEl.getBoundingClientRect();dox=e.clientX-r.left;doy=e.clientY-r.top
+})
+document.addEventListener('mouseup',()=>{
+  if(!dragging) return; dragging=false
+  const speed=Math.hypot(dragVx,dragVy)
+  if(speed>3){
+    // Throw — carry momentum forward
+    throwing=true; throwVx=dragVx*3.5; throwVy=dragVy*3.5
+    state='crazy'; crazyF=60
+    const throwQuips=['AAAAAA','wheeeee','okay okay','uncalled for','wee i guess','going going']
+    showBubble(throwQuips[Math.random()*throwQuips.length|0],2500)
+  } else {
+    pickTarget()
+  }
+})
+document.addEventListener('click',e=>{
+  if(chatOpen&&!chatEl.contains(e.target)&&!clawdEl.contains(e.target)) closeChat()
+})
+// Right-click context menu
+const ctxEl=document.getElementById('ctx')
+let ctxOpen=false
+function showCtx(e){
+  e.preventDefault()
+  let cx=e.clientX, cy=e.clientY
+  if(cx+165>SW) cx=SW-170; if(cy+140>SH) cy=SH-145
+  ctxEl.style.left=cx+'px'; ctxEl.style.top=cy+'px'
+  ctxEl.classList.add('show'); ctxOpen=true; ipcRenderer.send('mouse-over')
+}
+function hideCtx(){ ctxEl.classList.remove('show'); ctxOpen=false; if(!chatOpen&&!folderOpen&&!castleOpen) ipcRenderer.send('mouse-out') }
+clawdEl.addEventListener('contextmenu',showCtx)
+document.addEventListener('click',e=>{ if(!ctxEl.contains(e.target)) hideCtx() })
+document.addEventListener('contextmenu',e=>{ if(!clawdEl.contains(e.target)&&!ctxEl.contains(e.target)) hideCtx() })
+document.getElementById('ctx-talk').addEventListener('click',()=>{ hideCtx(); setTimeout(openChat,120) })
+document.getElementById('ctx-think').addEventListener('click',()=>{
+  hideCtx()
+  thoughtCd=0; thoughtBusy=false   // force immediate thought
+})
+document.getElementById('ctx-crisis').addEventListener('click',()=>{ hideCtx(); triggerCrisis() })
+document.getElementById('ctx-sleep').addEventListener('click',()=>{
+  hideCtx(); state='idle'; idleF=500; sleepTick=400; setSprite('sleep',true)
+  showBubble('fine.',2500)
+})
+document.getElementById('ctx-crazy').addEventListener('click',()=>{
+  hideCtx(); state='crazy'; crazyF=300; curSp=''
+  showBubble('okay',1500)
+})
+document.getElementById('ctx-pet').addEventListener('click',()=>{
+  hideCtx(); setSprite('happy',true)
+  const petResponses=['...','okay fine','stop it','okay okay','noted']
+  showBubble(petResponses[Math.random()*petResponses.length|0],3000)
+  setTimeout(()=>{ curSp=''; setSprite('idle') },2500)
+})
+document.getElementById('ctx-mob').addEventListener('click',()=>{ hideCtx(); nextMobIn=500 })
+document.getElementById('ctx-castle').addEventListener('click',()=>{ hideCtx(); nextCastleIn=500 })
+document.getElementById('ctx-vehicle').addEventListener('click',()=>{ hideCtx(); nextVehicleIn=500 })
+document.getElementById('ctx-quit').addEventListener('click',()=>ipcRenderer.send('quit'))
+
+// ── Boot ──────────────────────────────────────────────────────
+initOllama().then(()=>{
+  writeLog(`[boot] chat:${chatModel||'none'} bg:${bgModel||'none'}`)
+  if(chatModel) setTimeout(()=>showBubble("i'm awake",3500),1000)
+})
+pickTarget(); tick()
+</script>
+</body>
+</html>
