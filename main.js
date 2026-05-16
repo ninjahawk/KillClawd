@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain } = require('electron')
+const { app, BrowserWindow, screen, ipcMain, globalShortcut } = require('electron')
 const http = require('http')
 const path = require('path')
 
@@ -26,6 +26,15 @@ app.whenReady().then(() => {
   ipcMain.on('mouse-over', () => win.setIgnoreMouseEvents(false))
   ipcMain.on('mouse-out',  () => win.setIgnoreMouseEvents(true, { forward: true }))
   ipcMain.on('quit', unloadAndQuit)
+
+  globalShortcut.register('Ctrl+Shift+Space', () => {
+    if (win.isVisible()) {
+      win.hide()
+    } else {
+      win.show()
+      win.setIgnoreMouseEvents(true, { forward: true })
+    }
+  })
 })
 
 function unloadAndQuit() {
@@ -45,3 +54,4 @@ function unloadAndQuit() {
 }
 
 app.on('window-all-closed', () => app.quit())
+app.on('will-quit', () => globalShortcut.unregisterAll())
