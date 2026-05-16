@@ -1,5 +1,6 @@
 const { app, BrowserWindow, screen, ipcMain } = require('electron')
 const http = require('http')
+const path = require('path')
 
 let win
 
@@ -11,7 +12,12 @@ app.whenReady().then(() => {
     transparent: true, frame: false,
     alwaysOnTop: true, skipTaskbar: true,
     resizable: false, hasShadow: false,
-    webPreferences: { nodeIntegration: true, contextIsolation: false }
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
   })
 
   win.loadFile('index.html')
