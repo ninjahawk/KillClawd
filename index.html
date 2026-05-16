@@ -1074,7 +1074,7 @@ let folderOpen=false, obsLoop=null, folderFiles=[], folderFull='', folderNm=''
 let fpEnterX=0, fpEnterY=0, fpOpenAt=0, obsBusy=false
 
 function getDeskFolders(){
-  try{return api.readdirSync(DESKTOP).filter(f=>{const s=statOf(pathJoin(DESKTOP,f));return s&&s.isDirectory()})}catch{return[]}
+  try{return api.readdirSync(DESKTOP).filter(f=>{const s=statOf(pathJoin(DESKTOP,f));return s&&s.isDirectory})}catch{return[]}
 }
 function folderApproxPos(idx){
   const ipc=Math.max(1,Math.floor((SH-40)/90))
@@ -1107,7 +1107,7 @@ async function doEnterFolder(name){
   const shown=folderFiles.slice(0,10)
   for(const f of shown){
     const chip=document.createElement('div'); chip.className='fp-chip'
-    const isDir=(()=>{const s=statOf(pathJoin(folderFull,f));return s&&s.isDirectory()})()
+    const isDir=(()=>{const s=statOf(pathJoin(folderFull,f));return s&&s.isDirectory})()
     const icon=document.createElement('span'); icon.textContent=isDir?'📁':xi(f)
     const name=document.createElement('span'); name.textContent=f
     chip.appendChild(icon); chip.appendChild(name)
@@ -1155,7 +1155,7 @@ async function generateObs(){
   if(folderFiles.length){
     aboutFile=folderFiles[Math.random()*folderFiles.length|0]
     const fp2=pathJoin(folderFull,aboutFile), st=statOf(fp2)
-    const isDir=st&&st.isDirectory()
+    const isDir=st&&st.isDirectory
     const age=st?fileAge(st.mtimeMs):'?'
     const sz=st&&!isDir?fileSize(st.size):null
     const fst=statOf(folderFull)
